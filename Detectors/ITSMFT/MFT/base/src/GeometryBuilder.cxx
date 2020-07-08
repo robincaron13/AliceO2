@@ -102,3 +102,69 @@ void GeometryBuilder::buildGeometry()
 
   vALIC->AddNode(volMFT, 0, new TGeoTranslation(0., 30., 0.));
 }
+
+//______________________________________________________________________________
+TGeoHMatrix GeometryBuilder::Multiply(const TGeoHMatrix& m1,
+                                      const TGeoHMatrix& m2)
+{
+  /// Temporary fix for problem with matrix multiplication in Root 5.02/00
+
+  if (m1.IsIdentity() && m2.IsIdentity())
+    return TGeoHMatrix();
+
+  if (m1.IsIdentity())
+    return m2;
+
+  if (m2.IsIdentity())
+    return m1;
+
+  return m1 * m2;
+}
+
+//______________________________________________________________________________
+TGeoHMatrix GeometryBuilder::Multiply(const TGeoHMatrix& m1,
+                                      const TGeoHMatrix& m2,
+                                      const TGeoHMatrix& m3)
+{
+  /// Temporary fix for problem with matrix multiplication in Root 5.02/00
+
+  if (m1.IsIdentity() && m2.IsIdentity() & m3.IsIdentity())
+    return TGeoHMatrix();
+
+  if (m1.IsIdentity())
+    return Multiply(m2, m3);
+
+  if (m2.IsIdentity())
+    return Multiply(m1, m3);
+
+  if (m3.IsIdentity())
+    return Multiply(m1, m2);
+
+  return m1 * m2 * m3;
+}
+
+//______________________________________________________________________________
+TGeoHMatrix GeometryBuilder::Multiply(const TGeoHMatrix& m1,
+                                      const TGeoHMatrix& m2,
+                                      const TGeoHMatrix& m3,
+                                      const TGeoHMatrix& m4)
+{
+  /// Temporary fix for problem with matrix multiplication in Root 5.02/00
+
+  if (m1.IsIdentity() && m2.IsIdentity() & m3.IsIdentity() & m4.IsIdentity())
+    return TGeoHMatrix();
+
+  if (m1.IsIdentity())
+    return Multiply(m2, m3, m4);
+
+  if (m2.IsIdentity())
+    return Multiply(m1, m3, m4);
+
+  if (m3.IsIdentity())
+    return Multiply(m1, m2, m4);
+
+  if (m4.IsIdentity())
+    return Multiply(m1, m2, m3);
+
+  return m1 * m2 * m3 * m4;
+}

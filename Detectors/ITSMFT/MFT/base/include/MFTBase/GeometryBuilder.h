@@ -16,6 +16,8 @@
 #ifndef ALICEO2_MFT_GEOMETRYBUILDER_H_
 #define ALICEO2_MFT_GEOMETRYBUILDER_H_
 
+class TGeoHMatrix;
+
 namespace o2
 {
 namespace mft
@@ -27,6 +29,13 @@ class GeometryBuilder
  public:
   GeometryBuilder() = default;
   ~GeometryBuilder() = default;
+
+  // static methods
+  static TGeoHMatrix Multiply(const TGeoHMatrix& m1, const TGeoHMatrix& m2);
+  static TGeoHMatrix Multiply(const TGeoHMatrix& m1, const TGeoHMatrix& m2,
+                              const TGeoHMatrix& m3);
+  static TGeoHMatrix Multiply(const TGeoHMatrix& m1, const TGeoHMatrix& m2,
+                              const TGeoHMatrix& m3, const TGeoHMatrix& m4);
 
   void buildGeometry();
 

@@ -22,6 +22,7 @@
 #include "DetectorsBase/Detector.h"
 #include "DetectorsCommonDataFormats/DetID.h" // for Detector
 #include "ITSMFTSimulation/Hit.h"             // for Hit
+#include "MFTBase/Geometry.h"
 
 class TVector3;
 
@@ -38,6 +39,14 @@ namespace o2
 namespace mft
 {
 class GeometryTGeo;
+}
+} // namespace o2
+
+namespace o2
+{
+namespace mft
+{
+class Geometry;
 }
 } // namespace o2
 
@@ -75,6 +84,40 @@ class Detector : public o2::base::DetImpl<Detector>
     return nullptr;
   }
 
+  /// Add alignable top volumes
+  void addAlignableVolumes() const override;
+
+  /// Add alignable Half volumes
+  /// \param hf Half number
+  /// \param parent path of the parent volume
+  /// \param lastUID on output, UID of the last volume
+  void addAlignableVolumesHalf(Int_t hf, TString& parent, Int_t& lastUID) const;
+
+  /// Add alignable Disk volumes
+  /// \param hf half number
+  /// \param dk disk number
+  /// \param parent path of the parent volume
+  /// \param lastUID on output, UID of the last volume
+  void addAlignableVolumesDisk(Int_t hf, Int_t dk, TString& parent, Int_t& lastUID) const;
+
+  /// Add alignable Ladder volumes
+  /// \param hf half number
+  /// \param dk disk number
+  /// \param lr ladder stave number
+  /// \param parent path of the parent volume
+  /// \param lastUID on output, UID of the last volume
+  void addAlignableVolumesLadder(Int_t hf, Int_t dk, Int_t lr, TString& parent, Int_t& lastUID) const;
+
+  /// Add alignable Sensor volumes
+  /// \param hf half number
+  /// \param dk disk number
+  /// \param lr ladder number
+  /// \param ms sensor number
+  /// \param parent path of the parent volume
+  /// \param lastUID on output, UID of the last volume
+  void addAlignableVolumesChip(Int_t hf, Int_t dk, Int_t lr, Int_t ms, TString& parent,
+                               Int_t& lastUID) const;
+    
   void EndOfEvent() override;
 
   void FinishPrimary() override { ; }
@@ -83,8 +126,6 @@ class Detector : public o2::base::DetImpl<Detector>
   void PostTrack() override { ; }
   void PreTrack() override { ; }
   void ConstructGeometry() override; // inherited from FairModule
-
-  //
 
   Int_t isVersion() const { return mVersion; }
   /// Creating materials for the detector
@@ -135,6 +176,7 @@ class Detector : public o2::base::DetImpl<Detector>
   void defineSensitiveVolumes();
 
   GeometryTGeo* mGeometryTGeo; //! access to geometry details
+  Geometry* mGeometry;         //! access to geometry details
 
  protected:
   Int_t mVersion;                 //
