@@ -9,19 +9,24 @@
 # submit itself to any jurisdiction.
 
 o2_add_library(MFTSimulation
-               SOURCES src/Detector.cxx src/DigitizerTask.cxx
+               SOURCES 	src/Detector.cxx 
+			src/DigitizerTask.cxx
+			src/GeometryTest.cxx
+			src/GeometryMisAligner.cxx
                PUBLIC_LINK_LIBRARIES O2::MFTBase ROOT::Physics)
 
 o2_target_root_dictionary(MFTSimulation
-                          HEADERS include/MFTSimulation/Detector.h
-                                  include/MFTSimulation/DigitizerTask.h)
+                          HEADERS 	include/MFTSimulation/Detector.h
+                                  	include/MFTSimulation/DigitizerTask.h
+					include/MFTSimulation/GeometryTest.h
+					include/MFTSimulation/GeometryMisAligner.h)
 
 
 o2_data_file(COPY data  DESTINATION Detectors/MFT/simulation)
 
-o2_add_executable(digi2raw
+o2_add_executable(digi2raw 
                   COMPONENT_NAME mft
-                  SOURCES src/digi2raw.cxx
+                  SOURCES src/digi2raw.cxx 
                   PUBLIC_LINK_LIBRARIES O2::ITSMFTReconstruction
                                         O2::DataFormatsITSMFT
                                         O2::ITSMFTBase
@@ -30,3 +35,4 @@ o2_add_executable(digi2raw
                                         O2::DetectorsCommonDataFormats
                                         O2::CommonUtils
                                         Boost::program_options)
+

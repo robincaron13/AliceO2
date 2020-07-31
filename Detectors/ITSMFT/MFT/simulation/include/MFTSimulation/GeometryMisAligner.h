@@ -49,6 +49,9 @@
 
 #include <TObject.h>
 
+class TGeoCombiTrans;
+class TClonesArray;
+
 //namespace o2
 //{
 //namespace mft
@@ -56,22 +59,29 @@
 //class MFTGeometryTransformer;
 //}
 //}
-
 namespace o2
 {
 namespace mft
 {
-class TGeoCombiTrans;
+class GeometryTGeo;
 }
 } // namespace o2
 
-namespace o2
-{
-namespace mft
-{
-class TClonesArray;
-}
-} // namespace o2
+//namespace o2
+//{
+//namespace mft
+//{
+//class TGeoCombiTrans;
+//}
+//} // namespace o2
+
+//namespace o2
+//{
+//namespace mft
+//{
+//class TClonesArray;
+//}
+//} // namespace o2
 
 namespace o2
 {
@@ -89,10 +99,14 @@ class GeometryMisAligner : public TObject
   //_________________________________________________________________
   // methods
 
+  GeometryTGeo* mGeometryTGeo; //! access to geometry details
+
+  bool matrixToAngles(const double* rot, double& psi, double& theta, double& phi);
+
   // return a misaligned geometry obtained from the existing one.
   //MFTGeometryTransformer* MisAlign(const MFTGeometryTransformer* transformer,Bool_t verbose = kFALSE);
-  void MisAlign();
-    
+  void MisAlign(bool verbose = false);
+
   /// Set cartesian displacement parameters different along x, y
   void SetCartMisAlig(Double_t xmean, Double_t xwidth, Double_t ymean, Double_t ywidth, Double_t zmean = 0., Double_t zwidth = 0.)
   {
@@ -158,7 +172,7 @@ class GeometryMisAligner : public TObject
     fUseUni = useuni;
   }
 
-  /// Set module (half chambers) cartesian displacement parameters
+  /// Set module cartesian displacement parameters
   void SetModuleCartMisAlig(Double_t xmean, Double_t xwidth, Double_t ymean, Double_t ywidth, Double_t zmean, Double_t zwidth)
   {
     fModuleMisAlig[0][0] = xmean;
@@ -169,7 +183,7 @@ class GeometryMisAligner : public TObject
     fModuleMisAlig[2][1] = zwidth;
   }
 
-  /// Set module (half chambers) cartesian displacement parameters
+  /// Set module cartesian displacement parameters
   void SetModuleAngMisAlig(Double_t xmean, Double_t xwidth, Double_t ymean, Double_t ywidth, Double_t zmean, Double_t zwidth)
   {
     fModuleMisAlig[3][0] = xmean;
@@ -191,8 +205,11 @@ class GeometryMisAligner : public TObject
 
  private:
   // return a misaligned transformation
-  TGeoCombiTrans MisAlignDetElem(const TGeoCombiTrans& transform) const;
-  TGeoCombiTrans MisAlignModule(const TGeoCombiTrans& transform) const;
+  //TGeoCombiTrans MisAlignDetElem(const TGeoCombiTrans& transform) const;
+  //TGeoCombiTrans MisAlignModule(const TGeoCombiTrans& transform) const;
+  TGeoCombiTrans MisAlignDetElem() const;
+  TGeoCombiTrans MisAlignModule() const;
+
   void GetUniMisAlign(Double_t cartMisAlig[3], Double_t angMisAlig[3], const Double_t lParMisAlig[6][2]) const;
   void GetGausMisAlign(Double_t cartMisAlig[3], Double_t angMisAlig[3], const Double_t lParMisAlig[6][2]) const;
 

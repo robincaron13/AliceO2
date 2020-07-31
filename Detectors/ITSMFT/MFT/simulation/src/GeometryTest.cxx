@@ -12,7 +12,6 @@
 
 #include "DetectorsBase/GeometryManager.h"
 #include "DetectorsBase/MaterialManager.h"
-#include "MCHSimulation/Geometry.h"
 #include "Math/GenVector/Cartesian3D.h"
 #include "TGeoManager.h"
 #include "TGeoVolume.h"
@@ -24,6 +23,11 @@
 #include "MFTBase/Geometry.h"
 #include "MFTBase/GeometryTGeo.h"
 #include "MFTBase/GeometryBuilder.h"
+
+#include "TPRegexp.h"
+#include "TGLViewer.h"
+#include "TGLRnrCtx.h"
+#include "TVirtualPad.h"
 
 #include "MFTSimulation/Detector.h"
 
@@ -44,11 +48,11 @@ void createRegularGeometry()
               << " or gGeoManager->GetTopVolume()==nullptr\n";
   }
   TGeoManager* g = new TGeoManager("MFT-BASICS", "ALICE MFT Regular Geometry");
-  //  o2::passive::Cave("CAVE", "Cave (for MCH Basics)").ConstructGeometry();
-  //  o2::passive::Dipole("DIPO", "Alice Dipole (for MCH Basics)").ConstructGeometry();
+    o2::passive::Cave("CAVE", "Cave (for MFT Basics)").ConstructGeometry();
+   // o2::passive::Dipole("DIPO", "Alice Dipole (for MCH Basics)").ConstructGeometry();
   //  o2::passive::Compensator("COMP", "Alice Compensator Dipole (for MCH Basics)").ConstructGeometry();
-  //  o2::passive::Pipe("PIPE", "Beam pipe (for MCH Basics)").ConstructGeometry();
-  //  o2::passive::Shil("SHIL", "Small angle beam shield (for MCH Basics)").ConstructGeometry();
+    o2::passive::Pipe("PIPE", "Beam pipe (for MFT Basics)").ConstructGeometry();
+    o2::passive::Shil("SHIL", "Small angle beam shield (for MFT Basics)").ConstructGeometry();
   //  o2::passive::Absorber("ABSO", "Absorber (for MCH Basics)").ConstructGeometry();
   o2::mft::Detector(true).ConstructGeometry();
 }
@@ -65,14 +69,16 @@ void addAlignableVolumes()
   }
   // Then add the alignable volumes
   o2::mft::Detector(true).addAlignableVolumes();
-    
-    LOG(INFO) << "MFT  addAlignableVolumes ";
+
+  LOG(INFO) << "MFT  addAlignableVolumes ";
 }
 
 void MisalignGeometry()
 {
   // create a regular geometry
   createRegularGeometry();
+    
+    LOG(INFO) << "Created MFT Regular Geometry ";
 
   if (!gGeoManager) {
     std::cerr << "gGeoManager == nullptr, must create a geometry first\n";
@@ -89,14 +95,14 @@ void MisalignGeometry()
   o2::mft::GeometryMisAligner aGMA;
 
   aGMA.SetModuleCartMisAlig(0.1, 0., 0.2, 0., 0.3, 0.);
-  aGMA.SetModuleAngMisAlig(0.1, 0., 0.2, 0., 0.3, 0.);
+  //aGMA.SetModuleAngMisAlig(0.1, 0., 0.2, 0., 0.3, 0.);
+
   aGMA.SetCartMisAlig(0.1, 0., 0.1, 0., 0.1, 0.);
   aGMA.SetAngMisAlig(0.1, 0.0);
 
-  aGMA.MisAlign();
-    
-    LOG(INFO) << "createRegularGeometry and  GeometryMisAligner ";
+  aGMA.MisAlign(true);
 
+  LOG(INFO) << "Misaligned MFT Geometry ";
 }
 
 } // namespace test

@@ -58,7 +58,7 @@ class Detector : public o2::base::DetImpl<Detector>
 {
  public:
   /// Default constructor
-  Detector();
+  Detector(bool active = true);
 
   /// Default destructor
   ~Detector() override;
@@ -117,7 +117,7 @@ class Detector : public o2::base::DetImpl<Detector>
   /// \param lastUID on output, UID of the last volume
   void addAlignableVolumesChip(Int_t hf, Int_t dk, Int_t lr, Int_t ms, TString& parent,
                                Int_t& lastUID) const;
-    
+
   void EndOfEvent() override;
 
   void FinishPrimary() override { ; }

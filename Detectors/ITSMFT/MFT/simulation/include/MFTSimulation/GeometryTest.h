@@ -32,10 +32,10 @@ void addAlignableVolumes();
 /// misalign the MFT regular geometry
 void MisalignGeometry();
 
-//class Dummy
-//{
-//  // to force Root produce a dictionary for namespace test (seems it is doing it fully if there are only functions in the namespace)
-//};
+class Dummy
+{
+  // to force Root produce a dictionary for namespace test (seems it is doing it fully if there are only functions in the namespace)
+};
 
 } // namespace test
 } // namespace mft

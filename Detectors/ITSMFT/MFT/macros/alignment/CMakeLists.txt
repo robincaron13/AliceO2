@@ -8,6 +8,9 @@
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 
-o2_add_test_root_macro(extractMFTMapping.C 
-                       PUBLIC_LINK_LIBRARIES O2::MFTBase
-                       LABELS mft)
+o2_add_test_root_macro(MisalignGeometry.C 
+			NAME o2-test-mft-geometry-misalign
+        		COMPONENT_NAME mft
+                       	PUBLIC_LINK_LIBRARIES O2::MFTSimulation O2::MFTBase
+                       	LABELS itsmft mft macros alignment)
+	

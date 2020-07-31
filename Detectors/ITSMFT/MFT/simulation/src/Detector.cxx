@@ -38,8 +38,8 @@ using namespace o2::mft;
 ClassImp(o2::mft::Detector);
 
 //_____________________________________________________________________________
-Detector::Detector()
-  : o2::base::DetImpl<Detector>("MFT", kTRUE),
+Detector::Detector(bool active)
+  : o2::base::DetImpl<Detector>("MFT", active),
     mVersion(1),
     mDensitySupportOverSi(0.036),
     mHits(o2::utils::createSimVector<o2::itsmft::Hit>()),
