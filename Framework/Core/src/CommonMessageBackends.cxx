@@ -17,6 +17,7 @@
 #include "Framework/RawDeviceService.h"
 #include "Framework/DeviceSpec.h"
 #include "Framework/EndOfStreamContext.h"
+#include "Framework/Tracing.h"
 
 #include <options/FairMQProgOptions.h>
 
@@ -41,6 +42,7 @@ struct CommonMessageBackendsHelpers {
   static ServiceProcessingCallback sendCallback()
   {
     return [](ProcessingContext& ctx, void* service) {
+      ZoneScopedN("send message callback");
       T* context = reinterpret_cast<T*>(service);
       auto& device = ctx.services().get<RawDeviceService>();
       DataProcessor::doSend(*device.device(), *context);
@@ -81,8 +83,13 @@ o2::framework::ServiceSpec CommonMessageBackends::arrowBackendSpec()
                      CommonServices::noConfiguration(),
                      CommonMessageBackendsHelpers<ArrowContext>::clearContext(),
                      CommonMessageBackendsHelpers<ArrowContext>::sendCallback(),
+                     nullptr,
+                     nullptr,
                      CommonMessageBackendsHelpers<ArrowContext>::clearContextEOS(),
                      CommonMessageBackendsHelpers<ArrowContext>::sendCallbackEOS(),
+                     nullptr,
+                     nullptr,
+                     nullptr,
                      ServiceKind::Serial};
 }
 
@@ -113,8 +120,13 @@ o2::framework::ServiceSpec CommonMessageBackends::fairMQBackendSpec()
                      CommonServices::noConfiguration(),
                      CommonMessageBackendsHelpers<MessageContext>::clearContext(),
                      CommonMessageBackendsHelpers<MessageContext>::sendCallback(),
+                     nullptr,
+                     nullptr,
                      CommonMessageBackendsHelpers<MessageContext>::clearContextEOS(),
                      CommonMessageBackendsHelpers<MessageContext>::sendCallbackEOS(),
+                     nullptr,
+                     nullptr,
+                     nullptr,
                      ServiceKind::Serial};
 }
 
@@ -125,8 +137,13 @@ o2::framework::ServiceSpec CommonMessageBackends::stringBackendSpec()
                      CommonServices::noConfiguration(),
                      CommonMessageBackendsHelpers<StringContext>::clearContext(),
                      CommonMessageBackendsHelpers<StringContext>::sendCallback(),
+                     nullptr,
+                     nullptr,
                      CommonMessageBackendsHelpers<StringContext>::clearContextEOS(),
                      CommonMessageBackendsHelpers<StringContext>::sendCallbackEOS(),
+                     nullptr,
+                     nullptr,
+                     nullptr,
                      ServiceKind::Serial};
 }
 
@@ -137,8 +154,13 @@ o2::framework::ServiceSpec CommonMessageBackends::rawBufferBackendSpec()
                      CommonServices::noConfiguration(),
                      CommonMessageBackendsHelpers<RawBufferContext>::clearContext(),
                      CommonMessageBackendsHelpers<RawBufferContext>::sendCallback(),
+                     nullptr,
+                     nullptr,
                      CommonMessageBackendsHelpers<RawBufferContext>::clearContextEOS(),
                      CommonMessageBackendsHelpers<RawBufferContext>::sendCallbackEOS(),
+                     nullptr,
+                     nullptr,
+                     nullptr,
                      ServiceKind::Serial};
 }
 

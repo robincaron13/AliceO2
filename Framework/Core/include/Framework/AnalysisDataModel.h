@@ -117,7 +117,7 @@ DECLARE_SOA_DYNAMIC_COLUMN(Pz, pz, [](float signed1Pt, float tgl) -> float {
   return pt * tgl;
 });
 
-DECLARE_SOA_EXPRESSION_COLUMN(P, p, float, nsqrt((1.f + aod::track::tgl * aod::track::tgl) / nabs(aod::track::signed1Pt)));
+DECLARE_SOA_EXPRESSION_COLUMN(P, p, float, 0.5f * (ntan(0.25f * static_cast<float>(M_PI) - 0.5f * natan(aod::track::tgl)) + 1.f / ntan(0.25f * static_cast<float>(M_PI) - 0.5f * natan(aod::track::tgl))) / nabs(aod::track::signed1Pt));
 
 // TRACKPARCOV TABLE definition
 DECLARE_SOA_COLUMN(SigmaY, sigmaY, float);
@@ -251,6 +251,9 @@ using Track = Tracks::iterator;
 using TrackCov = TracksCov::iterator;
 using TrackExtra = TracksExtra::iterator;
 
+using FullTracks = soa::Join<Tracks, TracksCov, TracksExtra>;
+using FullTrack = FullTracks::iterator;
+
 namespace unassignedtracks
 {
 DECLARE_SOA_INDEX_COLUMN(Collision, collision);
@@ -309,13 +312,43 @@ DECLARE_SOA_COLUMN(NonBendingCoor, nonBendingCoor, float);
 // DECLARE_SOA_COLUMN(Covariances, covariances, float[], "fCovariances");
 DECLARE_SOA_COLUMN(Chi2, chi2, float);
 DECLARE_SOA_COLUMN(Chi2MatchTrigger, chi2MatchTrigger, float);
+DECLARE_SOA_DYNAMIC_COLUMN(Eta, eta, [](float inverseBendingMomentum, float thetaX, float thetaY) -> float {
+  float pz = -std::sqrt(1.0 + std::tan(thetaY) * std::tan(thetaY)) / std::abs(inverseBendingMomentum);
+  float pt = std::abs(pz) * std::sqrt(std::tan(thetaX) * std::tan(thetaX) + std::tan(thetaY) * std::tan(thetaY));
+  float eta = std::acos(pz / std::sqrt(pt * pt + pz * pz));
+  eta = std::tan(0.5 * eta);
+  if (eta > 0.0)
+    return -std::log(eta);
+  else
+    return 0.0;
+});
+DECLARE_SOA_DYNAMIC_COLUMN(Phi, phi, [](float thetaX, float thetaY) -> float {
+  float phi = std::atan2(std::tan(thetaY), std::tan(thetaX));
+  constexpr float twopi = 2.0f * static_cast<float>(M_PI);
+  return (phi >= 0.0 ? phi : phi + twopi);
+});
+DECLARE_SOA_EXPRESSION_COLUMN(Pt, pt, float, nsqrt(1.0f + ntan(aod::muon::thetaY) * ntan(aod::muon::thetaY)) * nsqrt(ntan(aod::muon::thetaX) * ntan(aod::muon::thetaX) + ntan(aod::muon::thetaY) * ntan(aod::muon::thetaY)) / nabs(aod::muon::inverseBendingMomentum));
+DECLARE_SOA_EXPRESSION_COLUMN(Px, px, float, -1.0f * ntan(aod::muon::thetaX) * nsqrt(1.0f + ntan(aod::muon::thetaY) * ntan(aod::muon::thetaY)) / nabs(aod::muon::inverseBendingMomentum));
+DECLARE_SOA_EXPRESSION_COLUMN(Py, py, float, -1.0f * ntan(aod::muon::thetaY) * nsqrt(1.0f + ntan(aod::muon::thetaY) * ntan(aod::muon::thetaY)) / nabs(aod::muon::inverseBendingMomentum));
+DECLARE_SOA_EXPRESSION_COLUMN(Pz, pz, float, -1.0f * nsqrt(1.0f + ntan(aod::muon::thetaY) * ntan(aod::muon::thetaY)) / nabs(aod::muon::inverseBendingMomentum));
+DECLARE_SOA_DYNAMIC_COLUMN(Charge, charge, [](float inverseBendingMomentum) -> short { return (inverseBendingMomentum > 0.0f) ? 1 : -1; });
 } // namespace muon
 
-DECLARE_SOA_TABLE(Muons, "AOD", "MUON",
-                  muon::BCId, muon::InverseBendingMomentum,
-                  muon::ThetaX, muon::ThetaY, muon::ZMu,
-                  muon::BendingCoor, muon::NonBendingCoor,
-                  muon::Chi2, muon::Chi2MatchTrigger);
+DECLARE_SOA_TABLE_FULL(StoredMuons, "Muons", "AOD", "MUON",
+                       muon::BCId, muon::InverseBendingMomentum,
+                       muon::ThetaX, muon::ThetaY, muon::ZMu,
+                       muon::BendingCoor, muon::NonBendingCoor,
+                       muon::Chi2, muon::Chi2MatchTrigger,
+                       muon::Eta<muon::InverseBendingMomentum, muon::ThetaX, muon::ThetaY>,
+                       muon::Phi<muon::ThetaX, muon::ThetaY>,
+                       muon::Charge<muon::InverseBendingMomentum>);
+
+DECLARE_SOA_EXTENDED_TABLE(Muons, StoredMuons, "MUON",
+                           aod::muon::Pt,
+                           aod::muon::Px,
+                           aod::muon::Py,
+                           aod::muon::Pz);
+
 using Muon = Muons::iterator;
 
 // NOTE for now muon tracks are uniquely assigned to a BC / GlobalBC assuming they contain an MID hit. Discussion on tracks without MID hit is ongoing.
@@ -361,7 +394,7 @@ DECLARE_SOA_COLUMN(TimeZPA, timeZPA, float);
 DECLARE_SOA_COLUMN(TimeZPC, timeZPC, float);
 } // namespace zdc
 
-DECLARE_SOA_TABLE(Zdcs, "AOD", "ZDC", zdc::BCId, zdc::EnergyZEM1, zdc::EnergyZEM2,
+DECLARE_SOA_TABLE(Zdcs, "AOD", "ZDC", o2::soa::Index<>, zdc::BCId, zdc::EnergyZEM1, zdc::EnergyZEM2,
                   zdc::EnergyCommonZNA, zdc::EnergyCommonZNC, zdc::EnergyCommonZPA, zdc::EnergyCommonZPC,
                   zdc::EnergySectorZNA, zdc::EnergySectorZNC, zdc::EnergySectorZPA, zdc::EnergySectorZPC,
                   zdc::TimeZEM1, zdc::TimeZEM2, zdc::TimeZNA, zdc::TimeZNC, zdc::TimeZPA, zdc::TimeZPC);
@@ -409,21 +442,29 @@ using FDD = FDDs::iterator;
 
 namespace v0
 {
-DECLARE_SOA_INDEX_COLUMN_FULL(PosTrack, posTrack, int, Tracks, "fPosTrackID");
-DECLARE_SOA_INDEX_COLUMN_FULL(NegTrack, negTrack, int, Tracks, "fNegTrackID");
+DECLARE_SOA_INDEX_COLUMN_FULL(PosTrack, posTrack, int, FullTracks, "fPosTrackID");
+DECLARE_SOA_INDEX_COLUMN_FULL(NegTrack, negTrack, int, FullTracks, "fNegTrackID");
+DECLARE_SOA_INDEX_COLUMN(Collision, collision);
 } // namespace v0
 
-DECLARE_SOA_TABLE(V0s, "AOD", "V0", v0::PosTrackId, v0::NegTrackId);
+DECLARE_SOA_TABLE(StoredV0s, "AOD", "O2v0", o2::soa::Index<>, v0::PosTrackId, v0::NegTrackId);
+DECLARE_SOA_TABLE(TransientV0s, "AOD", "V0INDEX", v0::CollisionId);
+
+using V0s = soa::Join<TransientV0s, StoredV0s>;
 using V0 = V0s::iterator;
 
 namespace cascade
 {
 DECLARE_SOA_INDEX_COLUMN(V0, v0);
-DECLARE_SOA_INDEX_COLUMN_FULL(Bachelor, bachelor, int, Tracks, "fTracksID");
+DECLARE_SOA_INDEX_COLUMN_FULL(Bachelor, bachelor, int, FullTracks, "fTracksID");
+DECLARE_SOA_INDEX_COLUMN(Collision, collision);
 } // namespace cascade
 
-DECLARE_SOA_TABLE(Cascades, "AOD", "CASCADE", cascade::V0Id, cascade::BachelorId);
-using Casecade = Cascades::iterator;
+DECLARE_SOA_TABLE(StoredCascades, "AOD", "O2cascade", o2::soa::Index<>, cascade::V0Id, cascade::BachelorId);
+DECLARE_SOA_TABLE(TransientCascades, "AOD", "CASCADEINDEX", cascade::CollisionId);
+
+using Cascades = soa::Join<TransientCascades, StoredCascades>;
+using Cascade = Cascades::iterator;
 
 // ---- LEGACY tables ----
 
@@ -459,11 +500,13 @@ DECLARE_SOA_COLUMN(PosY, posY, float);
 DECLARE_SOA_COLUMN(PosZ, posZ, float);
 DECLARE_SOA_COLUMN(T, t, float);
 DECLARE_SOA_COLUMN(Weight, weight, float);
+DECLARE_SOA_COLUMN(ImpactParameter, impactParameter, float);
 } // namespace mccollision
 
 DECLARE_SOA_TABLE(McCollisions, "AOD", "MCCOLLISION", o2::soa::Index<>, mccollision::BCId,
                   mccollision::GeneratorsID,
-                  mccollision::PosX, mccollision::PosY, mccollision::PosZ, mccollision::T, mccollision::Weight);
+                  mccollision::PosX, mccollision::PosY, mccollision::PosZ, mccollision::T, mccollision::Weight,
+                  mccollision::ImpactParameter);
 using McCollision = McCollisions::iterator;
 
 namespace mcparticle
@@ -472,8 +515,10 @@ DECLARE_SOA_INDEX_COLUMN(McCollision, mcCollision);
 DECLARE_SOA_COLUMN(PdgCode, pdgCode, int);
 DECLARE_SOA_COLUMN(StatusCode, statusCode, int);
 DECLARE_SOA_COLUMN(Flags, flags, uint8_t);
-DECLARE_SOA_COLUMN(Mother, mother, int[2]);     // TODO needs INDEX pending NULL columns
-DECLARE_SOA_COLUMN(Daughter, daughter, int[2]); // TODO needs INDEX pending NULL columns
+DECLARE_SOA_COLUMN(Mother0, mother0, int);
+DECLARE_SOA_COLUMN(Mother1, mother1, int);
+DECLARE_SOA_COLUMN(Daughter0, daughter0, int);
+DECLARE_SOA_COLUMN(Daughter1, daughter1, int);
 DECLARE_SOA_COLUMN(Weight, weight, float);
 DECLARE_SOA_COLUMN(Px, px, float);
 DECLARE_SOA_COLUMN(Py, py, float);
@@ -492,7 +537,7 @@ DECLARE_SOA_DYNAMIC_COLUMN(ProducedByGenerator, producedByGenerator, [](uint8_t 
 DECLARE_SOA_TABLE(McParticles, "AOD", "MCPARTICLE",
                   o2::soa::Index<>, mcparticle::McCollisionId,
                   mcparticle::PdgCode, mcparticle::StatusCode, mcparticle::Flags,
-                  mcparticle::Mother, mcparticle::Daughter, mcparticle::Weight,
+                  mcparticle::Mother0, mcparticle::Mother1, mcparticle::Daughter0, mcparticle::Daughter1, mcparticle::Weight,
                   mcparticle::Px, mcparticle::Py, mcparticle::Pz, mcparticle::E,
                   mcparticle::Vx, mcparticle::Vy, mcparticle::Vz, mcparticle::Vt,
                   mcparticle::Phi<mcparticle::Px, mcparticle::Py>,

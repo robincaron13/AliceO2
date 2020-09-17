@@ -75,6 +75,8 @@
 #include <TMath.h>
 #include <TRandom.h>
 #include <Riostream.h>
+//#include <TObject.h>
+#include <vector>
 
 #include "Framework/Logger.h"
 
@@ -275,7 +277,8 @@ TGeoCombiTrans GeometryMisAligner::MisAlignDetElem() const
   TGeoCombiTrans deltaTransf(deltaTrans, deltaRot);
   //TGeoHMatrix newTransfMat = transform * deltaTransf;
 
-  LOG(INFO) << "Rotated DE by " << angMisAlig[2] << "about Z axis.";
+  //LOG(INFO) << "Translation Module by (" << cartMisAlig[0] << "," << cartMisAlig[1] << "," << cartMisAlig[2] << ") on (X,Y,Z) axis.";
+  //LOG(INFO) << "Rotated Module by (" << angMisAlig[0] << "," << angMisAlig[1] << "," << angMisAlig[2] << ") about (X,Y,Z) axis.";
 
   return TGeoCombiTrans(deltaTransf);
 }
@@ -314,7 +317,8 @@ TGeoCombiTrans
   TGeoCombiTrans deltaTransf(deltaTrans, deltaRot);
   //TGeoHMatrix newTransfMat = transform * deltaTransf;
 
-  LOG(INFO) << "Rotated Module by " << angMisAlig[2] << " about Z axis.";
+  //LOG(INFO) << "Translation Module by (" << cartMisAlig[0] << "," << cartMisAlig[1] << "," << cartMisAlig[2] << ") on (X,Y,Z) axis.";
+  //LOG(INFO) << "Rotated Module by (" << angMisAlig[0] << "," << angMisAlig[1] << "," << angMisAlig[2] << ") about (X,Y,Z) axis.";
 
   return TGeoCombiTrans(deltaTransf);
 }
@@ -361,16 +365,26 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
   /// Returns the new geometry transformer.
 
   mGeometryTGeo = GeometryTGeo::Instance();
-
+  //mGeometry = Geometry::instance();
+    
+  //o2::detectors::AlignParam lAP;
   o2::detectors::AlignParam lAP;
+    
+  std::vector<std::vector<o2::detectors::AlignParam>> lAPvec;
 
+  std::vector<o2::detectors::AlignParam> lAPvecModule;  // Storage of all AlignParam for each Module
+  std::vector<o2::detectors::AlignParam> lAPvecDetElem; // Storage of all AlignParam for each DetElement
+
+  Int_t nAlignID = 0;
+  static TGeoHMatrix matIGTransf;
+    
   Int_t nHalf = mGeometryTGeo->getNumberOfHalfs();
 
-  for (int hf = 0; hf < nHalf; hf++) {
+  for (Int_t hf = 1; hf < nHalf; hf++) {
 
     Int_t nDisks = mGeometryTGeo->getNumberOfDisksPerHalf(hf);
 
-    for (int dk = 0; dk < nDisks; dk++) {
+    for (Int_t dk = 0; dk < nDisks; dk++) {
       // module transformers
       // const AliMUONGeometryModuleTransformer* kModuleTransformer =
       //   transformer->GetModuleTransformer(iMt, true);
@@ -383,33 +397,63 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
       //   TGeoCombiTrans(*kModuleTransformer->GetTransformation());
 
       // New module transformation
-      LOG(INFO) << "Will MisAlignModule : Disk" << dk;
       TGeoCombiTrans localDeltaTransform = MisAlignModule();
 
       // localDeltaTransform.Print();
-      std::string sname = GeometryTGeo::composeSymNameDisk(hf, dk);
-      LOG(INFO) << "Symbolic Name is " << sname.c_str();
+      TString sname = mGeometryTGeo->composeSymNameDisk(hf, dk);
+      //std::string sname = mGeometryTGeo->composeSymNameDisk(hf, dk);
 
+//      TString path = "/cave_1/barrel_1/" + sname ;
+//
+//      TGeoPhysicalNode *node = new TGeoPhysicalNode(path);
+//      TGeoHMatrix gprime = *node->GetMatrix();
+//      TGeoHMatrix align = lAP.createMatrix();
+//      gprime.MultiplyLeft(&align);
+//      TGeoHMatrix* ginv = new TGeoHMatrix; // TGeoPhysicalNode takes and manages raw pointer, need naked new!
+//      TGeoHMatrix* g = node->GetMatrix(node->GetLevel() - 1);
+//      *ginv = g->Inverse();
+//      *ginv *= gprime;
+        
+//      node->Align(ginv , nullptr, false, 1e-3);
+        
+        
       // newModuleTransformer->SetTransformation(newModuleTransform);
-      lAP.setSymName(sname.c_str());
-      LOG(DEBUG) << "local delta params";
+      lAP.setSymName(sname);
 
+      lAP.setAlignableID(nAlignID++);
+      //lAP.applyToGeometry();
+        
+        
+        
       double lPsi, lTheta, lPhi = 0.;
       if (!matrixToAngles(localDeltaTransform.GetRotationMatrix(), lPsi, lTheta, lPhi)) {
         LOG(ERROR) << "Problem extracting angles!";
       }
-      LOG(DEBUG) << fmt::format("{} : {} | X: {:+f} Y: {:+f} Z: {:+f} | pitch: {:+f} roll: {:+f} yaw: {:+f}\n",
-                                lAP.getSymName(), lAP.getAlignableID(), localDeltaTransform.GetTranslation()[0],
-                                localDeltaTransform.GetTranslation()[1], localDeltaTransform.GetTranslation()[2],
-                                lPsi, lTheta, lPhi);
+      LOG(DEBUG) << "**** LocalDeltaTransform Disk: " << fmt::format("{} : {} | X: {:+f} Y: {:+f} Z: {:+f} | pitch: {:+f} roll: {:+f} yaw: {:+f}\n", lAP.getSymName(), lAP.getAlignableID(), localDeltaTransform.GetTranslation()[0], localDeltaTransform.GetTranslation()[1], localDeltaTransform.GetTranslation()[2], localDeltaTransform.GetRotationMatrix()[0], localDeltaTransform.GetRotationMatrix()[1], localDeltaTransform.GetRotationMatrix()[2]);
 
-      if (!lAP.setLocalParams(localDeltaTransform)) {
-        LOG(ERROR) << "Could not set local params for " << sname.c_str();
-      }
-      LOG(DEBUG) << "global delta params";
-      LOG(DEBUG) << fmt::format("{} : {} | X: {:+f} Y: {:+f} Z: {:+f} | pitch: {:+f} roll: {:+f} yaw: {:+f}\n",
-                                lAP.getSymName(), lAP.getAlignableID(), lAP.getX(),
-                                lAP.getY(), lAP.getZ(), lAP.getPsi(), lAP.getTheta(), lAP.getPhi());
+      //      if (!lAP.setLocalParams(localDeltaTransform)) {
+      //        LOG(ERROR) << "Could not set local params for " << sname;
+      //      }
+
+//      lAP.setTranslation(localDeltaTransform.GetTranslation()[0],
+//                         localDeltaTransform.GetTranslation()[1],
+//                         localDeltaTransform.GetTranslation()[2]);
+        
+      lAP.setParams(localDeltaTransform);
+        
+//      lAP.setRotation(localDeltaTransform.GetRotationMatrix()[0],
+//                      localDeltaTransform.GetRotationMatrix()[1],
+//                      localDeltaTransform.GetRotationMatrix()[2]);
+
+      //      lAP.setLocalTranslation(localDeltaTransform.GetTranslation()[0],
+      //                                localDeltaTransform.GetTranslation()[1],
+      //                                localDeltaTransform.GetTranslation()[2]);
+      //
+      //      lAP.setLocalRotation(localDeltaTransform.GetRotationMatrix()[0],
+      //                             localDeltaTransform.GetRotationMatrix()[1],
+      //                             localDeltaTransform.GetRotationMatrix()[2]);
+
+      LOG(DEBUG) << "**** AlignParam Disk: " << fmt::format("{} : {} | X: {:+f} Y: {:+f} Z: {:+f} | pitch: {:+f} roll: {:+f} yaw: {:+f}\n", lAP.getSymName(), lAP.getAlignableID(), lAP.getX(), lAP.getY(), lAP.getZ(), lAP.getPsi(), lAP.getTheta(), lAP.getPhi());
       // lAP.Print();
 
       Int_t nLadders = 0;
@@ -417,40 +461,98 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
       for (Int_t sensor = mGeometryTGeo->getMinSensorsPerLadder(); sensor < mGeometryTGeo->getMaxSensorsPerLadder() + 1; sensor++) {
         nLadders += mGeometryTGeo->getNumberOfLaddersPerDisk(hf, dk, sensor);
       }
-      LOG(INFO) << " Disk " << dk << " nLadders " << nLadders;
 
+      if (verbose) {
+        LOG(INFO) << "----- Half-Disk:" << dk << " ----- Number of Ladders: " << nLadders << " -----";
+      }
+
+      //virtual TGeoMatrix *localDeltaTransformDM = localDeltaTransform.MakeClone();
+      //lAP.setLocalParams(localDeltaTransform);
+
+      lAP.Print();
+      lAP.applyToGeometry(); // Apply misaligned module to the geometry
+
+      //      TGeoHMatrix matDeltaDetModule = lAP.createMatrix(); // Get the alignment global delta matrix for module
+
+      //lAP.createLocalMatrix(matDeltaDetModule);           // extract local delta matrix for module
+
+      lAPvecModule.push_back(lAP);
+         
+        
+        
       for (Int_t lr = 0; lr < nLadders; lr++) {
 
-        LOG(INFO) << "  Will MisAlignDetElem : Ladder " << lr;
+        //gGeoManager->PushPath();
+
+        //matIGTransf = *gGeoManager->GetCurrentMatrix(); // matrix may change after cd
+          
         localDeltaTransform = MisAlignDetElem();
 
-        sname = GeometryTGeo::composeSymNameLadder(hf, dk, lr);
+        sname = mGeometryTGeo->composeSymNameLadder(hf, dk, lr);
+          
+        TString path = "/cave_1/barrel_1/" + sname ;
 
-        LOG(INFO) << "  Symbolic Name is " << sname.c_str();
-        lAP.setSymName(sname.c_str());
+        //TGeoPhysicalNode *pnladder = new TGeoPhysicalNode(path);
+          
+        lAP.setSymName(sname);
 
-        LOG(DEBUG) << "  local delta params";
+        lAP.setAlignableID(nAlignID++);
+        //lAP.applyToGeometry();
 
-        if (!matrixToAngles(localDeltaTransform.GetRotationMatrix(), lPsi, lTheta, lPhi)) {
-          LOG(ERROR) << "Problem extracting angles!";
-        }
+        //        if (!matrixToAngles(localDeltaTransform.GetRotationMatrix(), lPsi, lTheta, lPhi)) {
+        //          LOG(ERROR) << "Problem extracting angles!";
+        //        }
 
-        LOG(DEBUG) << fmt::format("{} : {} | X: {:+f} Y: {:+f} Z: {:+f} | pitch: {:+f} roll: {:+f} yaw: {:+f}\n",
-                                  lAP.getSymName(), lAP.getAlignableID(), localDeltaTransform.GetTranslation()[0],
-                                  localDeltaTransform.GetTranslation()[1], localDeltaTransform.GetTranslation()[2],
-                                  lPsi, lTheta, lPhi);
+        LOG(DEBUG) << "LocalDeltaTransform Ladder: " << fmt::format("{} : {} | X: {:+f} Y: {:+f} Z: {:+f} | pitch: {:+f} roll: {:+f} yaw: {:+f}\n", lAP.getSymName(), lAP.getAlignableID(), localDeltaTransform.GetTranslation()[0], localDeltaTransform.GetTranslation()[1], localDeltaTransform.GetTranslation()[2], lPsi, lTheta, lPhi);
 
-        if (!lAP.setLocalParams(localDeltaTransform)) {
-          LOG(ERROR) << "  Could not set local params for " << sname.c_str();
-        }
+        //        if (!lAP.setLocalParams(localDeltaTransform)) {
+        //          LOG(ERROR) << "  Could not set local params for " << sname;
+        //        }
+        //lAP.applyToGeometry(false);
+        // Set the global transformations
+//        lAP.setTranslation(localDeltaTransform.GetTranslation()[0],
+//                           localDeltaTransform.GetTranslation()[1],
+//                           localDeltaTransform.GetTranslation()[2]);
+         lAP.setParams(localDeltaTransform);
+          
+//        lAP.setRotation(localDeltaTransform.GetRotationMatrix()[0],
+//                        localDeltaTransform.GetRotationMatrix()[1],
+//                        localDeltaTransform.GetRotationMatrix()[2]);
 
-        LOG(DEBUG) << "  global delta params";
-        LOG(DEBUG) << fmt::format("  {} : {} | X: {:+f} Y: {:+f} Z: {:+f} | pitch: {:+f} roll: {:+f} yaw: {:+f}\n", lAP.getSymName(), lAP.getAlignableID(), lAP.getX(),
-                                  lAP.getY(), lAP.getZ(), lAP.getPsi(), lAP.getTheta(), lAP.getPhi());
+        //lAP.applyToGeometry();
+        // Set the local transformations
+
+
+        LOG(DEBUG) << "AlignParam Ladder: " << fmt::format("  {} : {} | X: {:+f} Y: {:+f} Z: {:+f} | pitch: {:+f} roll: {:+f} yaw: {:+f}\n", lAP.getSymName(), lAP.getAlignableID(), lAP.getX(), lAP.getY(), lAP.getZ(), lAP.getPsi(), lAP.getTheta(), lAP.getPhi());
 
         if (verbose) {
-          LOG(INFO) << "MisAligned ladder element : " << sname.c_str() << " " << lr;
+          LOG(INFO) << "---------> MisAligned element : " << sname << "   Ladder: " << lr;
         }
+
+        //TGeoMatrix *localDeltaTransformDE;
+//        localDeltaTransformDE->SetDx( localDeltaTransform.GetTranslation()[0] );
+//        localDeltaTransformDE->SetDy( localDeltaTransform.GetTranslation()[1] );
+//        localDeltaTransformDE->SetDz( localDeltaTransform.GetTranslation()[2] );
+//        localDeltaTransformDE->RotateX( localDeltaTransform.GetRotationMatrix()[0] );
+//        localDeltaTransformDE->RotateY( localDeltaTransform.GetRotationMatrix()[1] );
+//        localDeltaTransformDE->RotateZ( localDeltaTransform.GetRotationMatrix()[2] );
+
+        //lAP.setLocalParams(localDeltaTransform);
+
+        lAP.Print();
+        lAP.applyToGeometry(); // Apply misaligned detection element to the geometry
+
+        //pnladder->Align(localDeltaTransformDE);
+          
+        //        if( lAP.applyToGeometry() ){
+        //          LOG(INFO) << "-- ApplyToGeometry()  : " << sname;
+        //        };
+
+        //        TGeoHMatrix matDeltaDetElement = lAP.createMatrix(); // Get the alignment global delta matrix for detection element
+        //
+        //        lAP.createLocalMatrix(matDeltaDetElement); // Extract local delta matrix for detection element
+
+        lAPvecDetElem.push_back(lAP);
       }
 
       // Get delta transformation:
@@ -512,6 +614,16 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
     }
   }
 
+  lAPvec.push_back(lAPvecModule);
+  lAPvec.push_back(lAPvecDetElem);
+
+  for (o2::detectors::AlignParam MDalignparam : lAPvecModule) {
+    //MDalignparam.Print();
+    for (o2::detectors::AlignParam DEalignparam : lAPvecDetElem) {
+      //DEalignparam.Print();
+    }
+  }
+    
   // return newGeometryTransformer;
 }
 

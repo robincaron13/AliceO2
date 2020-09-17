@@ -48,11 +48,11 @@ void createRegularGeometry()
               << " or gGeoManager->GetTopVolume()==nullptr\n";
   }
   TGeoManager* g = new TGeoManager("MFT-BASICS", "ALICE MFT Regular Geometry");
-    o2::passive::Cave("CAVE", "Cave (for MFT Basics)").ConstructGeometry();
-   // o2::passive::Dipole("DIPO", "Alice Dipole (for MCH Basics)").ConstructGeometry();
+  //o2::passive::Cave("CAVE", "Cave (for MFT Basics)").ConstructGeometry();
+  // o2::passive::Dipole("DIPO", "Alice Dipole (for MCH Basics)").ConstructGeometry();
   //  o2::passive::Compensator("COMP", "Alice Compensator Dipole (for MCH Basics)").ConstructGeometry();
-    o2::passive::Pipe("PIPE", "Beam pipe (for MFT Basics)").ConstructGeometry();
-    o2::passive::Shil("SHIL", "Small angle beam shield (for MFT Basics)").ConstructGeometry();
+  //o2::passive::Pipe("PIPE", "Beam pipe (for MFT Basics)").ConstructGeometry();
+  //o2::passive::Shil("SHIL", "Small angle beam shield (for MFT Basics)").ConstructGeometry();
   //  o2::passive::Absorber("ABSO", "Absorber (for MCH Basics)").ConstructGeometry();
   o2::mft::Detector(true).ConstructGeometry();
 }
@@ -77,8 +77,8 @@ void MisalignGeometry()
 {
   // create a regular geometry
   createRegularGeometry();
-    
-    LOG(INFO) << "Created MFT Regular Geometry ";
+
+  LOG(INFO) << "Created MFT Regular Geometry ";
 
   if (!gGeoManager) {
     std::cerr << "gGeoManager == nullptr, must create a geometry first\n";
@@ -88,6 +88,7 @@ void MisalignGeometry()
   if (!gGeoManager->IsClosed()) {
     gGeoManager->CloseGeometry();
   }
+
   // Then add the alignable volumes
   o2::mft::Detector(true).addAlignableVolumes();
 

@@ -94,13 +94,18 @@ class GeometryMisAligner : public TObject
   GeometryMisAligner(Double_t cartMisAligM, Double_t cartMisAligW, Double_t angMisAligM, Double_t angMisAligW);
   GeometryMisAligner(Double_t cartMisAligW, Double_t angMisAligW);
   GeometryMisAligner();
-  virtual ~GeometryMisAligner();
+  ~GeometryMisAligner() override;
+
+  /// Not implemented
+  GeometryMisAligner(const GeometryMisAligner& right);
+  /// Not implemented
+  GeometryMisAligner& operator=(const GeometryMisAligner& right);
 
   //_________________________________________________________________
   // methods
 
-  GeometryTGeo* mGeometryTGeo; //! access to geometry details
-
+  GeometryTGeo* mGeometryTGeo; //! access to geometry details    
+    
   bool matrixToAngles(const double* rot, double& psi, double& theta, double& phi);
 
   // return a misaligned geometry obtained from the existing one.
@@ -198,11 +203,6 @@ class GeometryMisAligner : public TObject
   void SetAlignmentResolution(const TClonesArray* misAlignArray, Int_t chId = -1, Double_t chResX = -1., Double_t chResY = -1., Double_t deResX = -1., Double_t deResY = -1.);
 
  protected:
-  /// Not implemented
-  GeometryMisAligner(const GeometryMisAligner& right);
-  /// Not implemented
-  GeometryMisAligner& operator=(const GeometryMisAligner& right);
-
  private:
   // return a misaligned transformation
   //TGeoCombiTrans MisAlignDetElem(const TGeoCombiTrans& transform) const;
@@ -221,7 +221,7 @@ class GeometryMisAligner : public TObject
   Double_t fXYAngMisAligFactor; ///< factor (<1) to apply to angular misalignment range since range of motion is restricted out of the xy plane
   Double_t fZCartMisAligFactor; ///< factor (<1) to apply to cartetian misalignment range since range of motion is restricted in z direction
 
-  ClassDef(GeometryMisAligner, 4) // Geometry parametrisation
+  ClassDefOverride(GeometryMisAligner, 4) // Geometry parametrisation
 };
 
 } // namespace mft

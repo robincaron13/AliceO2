@@ -16,9 +16,17 @@ namespace o2::aod
 namespace etaphi
 {
 DECLARE_SOA_COLUMN(NPhi, nphi, float);
+DECLARE_SOA_EXPRESSION_COLUMN(CosPhi, cosphi, float, ncos(aod::etaphi::nphi));
 } // namespace etaphi
-DECLARE_SOA_TABLE(TPhi, "AOD", "ETAPHI",
+namespace track
+{
+DECLARE_SOA_EXPRESSION_COLUMN(SPt, spt, float, nabs(aod::track::sigma1Pt / aod::track::signed1Pt));
+}
+DECLARE_SOA_TABLE(TPhi, "AOD", "TPHI",
                   etaphi::NPhi);
+DECLARE_SOA_EXTENDED_TABLE_USER(EPhi, TPhi, "EPHI", aod::etaphi::CosPhi);
+using etracks = soa::Join<aod::Tracks, aod::TracksCov>;
+DECLARE_SOA_EXTENDED_TABLE_USER(MTracks, etracks, "MTRACK", aod::track::SPt);
 } // namespace o2::aod
 
 using namespace o2;
@@ -30,17 +38,19 @@ using namespace o2::framework::expressions;
 // FIXME: this should really inherit from AnalysisTask but
 //        we need GCC 7.4+ for that
 struct ATask {
-  Produces<aod::TPhi> etaphi;
-
+  Produces<aod::TPhi> tphi;
   void process(aod::Tracks const& tracks)
   {
     for (auto& track : tracks) {
-      etaphi(track.phi());
+      tphi(track.phi());
     }
   }
 };
 
 struct BTask {
+  Spawns<aod::EPhi> ephi;
+  Spawns<aod::MTracks> mtrk;
+
   float fPI = static_cast<float>(M_PI);
   float ptlow = 0.5f;
   float ptup = 2.0f;
@@ -55,11 +65,32 @@ struct BTask {
   float phiup = 2.0f;
   Filter phifilter = (aod::etaphi::nphi < phiup) && (aod::etaphi::nphi > philow);
 
-  void process(aod::Collision const& collision, soa::Filtered<soa::Join<aod::Tracks, aod::TPhi>> const& tracks)
+  Filter posZfilter = nabs(aod::collision::posZ) < 10.0f;
+
+  void process(soa::Filtered<aod::Collisions>::iterator const& collision, soa::Filtered<soa::Join<aod::Tracks, aod::TPhi>> const& tracks)
   {
-    LOGF(INFO, "Collision: %d [N = %d]", collision.globalIndex(), tracks.size());
+    LOGF(INFO, "Collision: %d [N = %d], -10 < %.3f < 10", collision.globalIndex(), tracks.size(), collision.posZ());
     for (auto& track : tracks) {
       LOGF(INFO, "id = %d; eta:  %.3f < %.3f < %.3f; phi: %.3f < %.3f < %.3f; pt: %.3f < %.3f < %.3f", track.collisionId(), etalow, track.eta(), etaup, philow, track.nphi(), phiup, ptlow, track.pt(), ptup);
+    }
+  }
+};
+
+struct CTask {
+  void process(aod::Collision const&, soa::Join<aod::Tracks, aod::EPhi> const& tracks)
+  {
+    for (auto& track : tracks) {
+      LOGF(INFO, "%.3f == %.3f", track.cosphi(), std::cos(track.phi()));
+    }
+  }
+};
+
+struct DTask {
+  Filter notTracklet = aod::track::trackType != static_cast<uint8_t>(aod::track::TrackTypeEnum::Run2Tracklet);
+  void process(aod::Collision const&, soa::Filtered<aod::MTracks> const& tracks)
+  {
+    for (auto& track : tracks) {
+      LOGF(INFO, "%.3f == %.3f", track.spt(), std::abs(track.sigma1Pt() / track.signed1Pt()));
     }
   }
 };
@@ -68,5 +99,7 @@ WorkflowSpec defineDataProcessing(ConfigContext const&)
 {
   return WorkflowSpec{
     adaptAnalysisTask<ATask>("produce-normalizedphi"),
-    adaptAnalysisTask<BTask>("consume-normalizedphi")};
+    adaptAnalysisTask<BTask>("consume-normalizedphi"),
+    adaptAnalysisTask<CTask>("consume-spawned-ephi"),
+    adaptAnalysisTask<DTask>("consume-spawned-mtracks")};
 }

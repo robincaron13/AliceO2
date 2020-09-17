@@ -7,20 +7,18 @@
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
+
+/// \file hftrackindexskimscreator.cxx
+/// \brief Pre-selection of 2-prong and 3-prong secondary vertices of heavy-flavour decay candidates
+///
+/// \author Gian Michele Innocenti <gian.michele.innocenti@cern.ch>, CERN
+/// \author Vít Kučera <vit.kucera@cern.ch>, CERN
+
 #include "Framework/runDataProcessing.h"
 #include "Framework/AnalysisTask.h"
-#include "Framework/AnalysisDataModel.h"
-#include "Framework/ASoAHelpers.h"
-#include "Analysis/SecondaryVertexHF.h"
 #include "DetectorsVertexing/DCAFitterN.h"
-#include "ReconstructionDataFormats/Track.h"
-#include "Analysis/RecoDecay.h"
-
-#include <TFile.h>
-#include <TH1F.h>
-#include <cmath>
-#include <array>
-#include <cstdlib>
+#include "Analysis/SecondaryVertexHF.h"
+#include "Analysis/trackUtilities.h"
 
 using namespace o2;
 using namespace o2::framework;
@@ -31,16 +29,16 @@ namespace o2::aod
 {
 namespace seltrack
 {
-DECLARE_SOA_COLUMN(IsSel, issel, int);
-DECLARE_SOA_COLUMN(DCAPrim0, dcaprim0, float);
-DECLARE_SOA_COLUMN(DCAPrim1, dcaprim1, float);
+DECLARE_SOA_COLUMN(IsSel, isSel, int);
+DECLARE_SOA_COLUMN(DCAPrim0, dcaPrim0, float);
+DECLARE_SOA_COLUMN(DCAPrim1, dcaPrim1, float);
 } // namespace seltrack
-DECLARE_SOA_TABLE(SelTrack, "AOD", "SELTRACK", seltrack::IsSel, seltrack::DCAPrim0,
-                  seltrack::DCAPrim1);
+DECLARE_SOA_TABLE(SelTrack, "AOD", "SELTRACK", seltrack::IsSel, seltrack::DCAPrim0, seltrack::DCAPrim1);
 } // namespace o2::aod
 
+/// Track selection
 struct SelectTracks {
-  Produces<aod::SelTrack> seltrack;
+  Produces<aod::SelTrack> rowSelectedTrack;
   Configurable<double> ptmintrack{"ptmintrack", -1, "ptmin single track"};
   Configurable<double> dcatoprimxymin{"dcatoprimxymin", 0, "dca xy to prim vtx min"};
   Configurable<int> d_tpcnclsfound{"d_tpcnclsfound", 70, "min number of tpc cls >="};
@@ -54,82 +52,76 @@ struct SelectTracks {
                soa::Join<aod::Tracks, aod::TracksCov, aod::TracksExtra> const& tracks)
   {
     Point3D<float> vtxXYZ(collision.posX(), collision.posY(), collision.posZ());
-    for (auto it0 = tracks.begin(); it0 != tracks.end(); ++it0) {
-      auto& track_0 = *it0;
-      int status = 1;
-      if (b_dovalplots == true)
-        hpt_nocuts->Fill(track_0.pt());
-      if (track_0.pt() < ptmintrack)
+    for (auto& track : tracks) {
+      int status = 1; // selection flag
+      if (b_dovalplots)
+        hpt_nocuts->Fill(track.pt());
+      if (track.pt() < ptmintrack)
         status = 0;
-      UChar_t clustermap_0 = track_0.itsClusterMap();
-      bool isselected_0 = track_0.tpcNClsFound() >= d_tpcnclsfound && track_0.flags() & 0x4;
+      UChar_t clustermap_0 = track.itsClusterMap();
+      bool isselected_0 = track.tpcNClsFound() >= d_tpcnclsfound && track.flags() & 0x4;
       isselected_0 = isselected_0 && (TESTBIT(clustermap_0, 0) || TESTBIT(clustermap_0, 1));
       if (!isselected_0)
         status = 0;
       array<float, 2> dca;
-      float x0_ = track_0.x();
-      float alpha0_ = track_0.alpha();
-      std::array<float, 5> arraypar0 = {track_0.y(), track_0.z(), track_0.snp(),
-                                        track_0.tgl(), track_0.signed1Pt()};
-      std::array<float, 15> covpar0 = {track_0.cYY(), track_0.cZY(), track_0.cZZ(),
-                                       track_0.cSnpY(), track_0.cSnpZ(),
-                                       track_0.cSnpSnp(), track_0.cTglY(), track_0.cTglZ(),
-                                       track_0.cTglSnp(), track_0.cTglTgl(),
-                                       track_0.c1PtY(), track_0.c1PtZ(), track_0.c1PtSnp(),
-                                       track_0.c1PtTgl(), track_0.c1Pt21Pt2()};
-      o2::track::TrackParCov trackparvar0(x0_, alpha0_, arraypar0, covpar0);
-      trackparvar0.propagateParamToDCA(vtxXYZ, d_bz, &dca);
+      auto trackparvar0 = getTrackParCov(track);
+      trackparvar0.propagateParamToDCA(vtxXYZ, d_bz, &dca); // get impact parameters
       if (abs(dca[0]) < dcatoprimxymin)
         status = 0;
-      if (b_dovalplots == true) {
+      if (b_dovalplots) {
         if (status == 1) {
-          hpt_cuts->Fill(track_0.pt());
+          hpt_cuts->Fill(track.pt());
           hdcatoprimxy_cuts->Fill(dca[0]);
         }
       }
-      seltrack(status, dca[0], dca[1]);
+      rowSelectedTrack(status, dca[0], dca[1]);
     }
   }
 };
 
+/// Pre-selection of 2-prong and 3-prong secondary vertices
 struct HFTrackIndexSkimsCreator {
-  float masspion = 0.140;
-  float masskaon = 0.494;
-  OutputObj<TH1F> hmass2{TH1F("hmass2", "; Inv Mass (GeV/c^{2})", 500, 0, 5.0)};
-  OutputObj<TH1F> hmass3{TH1F("hmass3", "; Inv Mass (GeV/c^{2})", 500, 0, 5.0)};
-  Produces<aod::HfTrackIndexProng2> hftrackindexprong2;
-  Produces<aod::HfTrackIndexProng3> hftrackindexprong3;
+  Produces<aod::HfTrackIndexProng2> rowTrackIndexProng2;
+  Produces<aod::HfTrackIndexProng3> rowTrackIndexProng3;
   Configurable<int> triggerindex{"triggerindex", -1, "trigger index"};
   Configurable<int> do3prong{"do3prong", 0, "do 3 prong"};
   Configurable<double> d_bz{"d_bz", 5.0, "bz field"};
-  Configurable<bool> b_propdca{"b_propdca", true,
-                               "create tracks version propagated to PCA"};
+  Configurable<bool> b_propdca{"b_propdca", true, "create tracks version propagated to PCA"};
   Configurable<double> d_maxr{"d_maxr", 200, "reject PCA's above this radius"};
-  Configurable<double> d_maxdzini{"d_maxdzini", 4,
-                                  "reject (if>0) PCA candidate if tracks DZ exceeds threshold"};
-  Configurable<double> d_minparamchange{"d_minparamchange", 1e-3,
-                                        "stop iterations if largest change of any X is smaller than this"};
-  Configurable<double> d_minrelchi2change{"d_minrelchi2change", 0.9,
-                                          "stop iterations is chi2/chi2old > this"};
+  Configurable<double> d_maxdzini{"d_maxdzini", 4, "reject (if>0) PCA candidate if tracks DZ exceeds threshold"};
+  Configurable<double> d_minparamchange{"d_minparamchange", 1e-3, "stop iterations if largest change of any X is smaller than this"};
+  Configurable<double> d_minrelchi2change{"d_minrelchi2change", 0.9, "stop iterations is chi2/chi2old > this"};
   Configurable<double> d_minmassDp{"d_minmassDp", 1.5, "min mass dplus presel"};
   Configurable<double> d_maxmassDp{"d_maxmassDp", 2.1, "max mass dplus presel"};
   Configurable<bool> b_dovalplots{"b_dovalplots", true, "do validation plots"};
-  Filter seltrack = (aod::seltrack::issel == 1);
+  OutputObj<TH1F> hmass2{TH1F("hmass2", "; Inv Mass (GeV/c^{2})", 500, 0, 5.0)};
+  OutputObj<TH1F> hmass3{TH1F("hmass3", "; Inv Mass (GeV/c^{2})", 500, 0, 5.0)};
+
+  Filter filterSelectTracks = aod::seltrack::isSel == 1;
+  using SelectedTracks = soa::Filtered<soa::Join<aod::Tracks, aod::TracksCov, aod::TracksExtra, aod::SelTrack>>;
+  // FIXME
+  //Partition<SelectedTracks> tracksPos = aod::track::signed1Pt > 0.f;
+  //Partition<SelectedTracks> tracksNeg = aod::track::signed1Pt < 0.f;
+
+  double massPi = RecoDecay::getMassPDG(kPiPlus);
+  double massK = RecoDecay::getMassPDG(kKPlus);
+  double mass2PiK{0};
+  double mass2KPi{0};
+  double mass3PiKPi{0};
 
   void process(aod::Collision const& collision,
                aod::BCs const& bcs,
-               soa::Filtered<soa::Join<aod::Tracks, aod::TracksCov, aod::TracksExtra, aod::SelTrack>> const& tracks)
+               SelectedTracks const& tracks)
   {
     int trigindex = int{triggerindex};
     if (trigindex != -1) {
-      //LOGF(info, "Selecting on trigger bit %d", trigindex);
       uint64_t triggerMask = collision.bc().triggerMask();
       bool isTriggerClassFired = triggerMask & 1ul << (trigindex - 1);
       if (!isTriggerClassFired)
         return;
     }
 
-    LOGF(info, "N. of Tracks for collision: %d", tracks.size());
+    // 2-prong vertex fitter
     o2::vertexing::DCAFitterN<2> df;
     df.setBz(d_bz);
     df.setPropagateToPCA(b_propdca);
@@ -137,7 +129,9 @@ struct HFTrackIndexSkimsCreator {
     df.setMaxDZIni(d_maxdzini);
     df.setMinParamChange(d_minparamchange);
     df.setMinRelChi2Change(d_minrelchi2change);
+    df.setUseAbsDCA(true);
 
+    // 3-prong vertex fitter
     o2::vertexing::DCAFitterN<3> df3;
     df3.setBz(d_bz);
     df3.setPropagateToPCA(b_propdca);
@@ -145,156 +139,147 @@ struct HFTrackIndexSkimsCreator {
     df3.setMaxDZIni(d_maxdzini);
     df3.setMinParamChange(d_minparamchange);
     df3.setMinRelChi2Change(d_minrelchi2change);
+    df3.setUseAbsDCA(true);
 
-    for (auto i_p1 = tracks.begin(); i_p1 != tracks.end(); ++i_p1) {
-      auto& track_p1 = *i_p1;
-      if (track_p1.signed1Pt() < 0)
+    // first loop over positive tracks
+    //for (auto trackPos1 = tracksPos.begin(); trackPos1 != tracksPos.end(); ++trackPos1) {
+    for (auto trackPos1 = tracks.begin(); trackPos1 != tracks.end(); ++trackPos1) {
+      if (trackPos1.signed1Pt() < 0)
         continue;
-      float x_p1 = track_p1.x();
-      float alpha_p1 = track_p1.alpha();
-      std::array<float, 5> arraypar_p1 = {track_p1.y(), track_p1.z(), track_p1.snp(),
-                                          track_p1.tgl(), track_p1.signed1Pt()};
-      std::array<float, 15> covpar_p1 = {track_p1.cYY(), track_p1.cZY(), track_p1.cZZ(),
-                                         track_p1.cSnpY(), track_p1.cSnpZ(),
-                                         track_p1.cSnpSnp(), track_p1.cTglY(), track_p1.cTglZ(),
-                                         track_p1.cTglSnp(), track_p1.cTglTgl(),
-                                         track_p1.c1PtY(), track_p1.c1PtZ(), track_p1.c1PtSnp(),
-                                         track_p1.c1PtTgl(), track_p1.c1Pt21Pt2()};
-      o2::track::TrackParCov trackparvar_p1(x_p1, alpha_p1, arraypar_p1, covpar_p1);
-      for (auto i_n1 = tracks.begin(); i_n1 != tracks.end(); ++i_n1) {
-        auto& track_n1 = *i_n1;
-        if (track_n1.signed1Pt() > 0)
+
+      auto trackParVarPos1 = getTrackParCov(trackPos1);
+
+      // first loop over negative tracks
+      //for (auto trackNeg1 = tracksNeg.begin(); trackNeg1 != tracksNeg.end(); ++trackNeg1) {
+      for (auto trackNeg1 = tracks.begin(); trackNeg1 != tracks.end(); ++trackNeg1) {
+        if (trackNeg1.signed1Pt() > 0)
           continue;
-        float x_n1 = track_n1.x();
-        float alpha_n1 = track_n1.alpha();
-        std::array<float, 5> arraypar_n1 = {track_n1.y(), track_n1.z(), track_n1.snp(),
-                                            track_n1.tgl(), track_n1.signed1Pt()};
-        std::array<float, 15> covpar_n1 = {track_n1.cYY(), track_n1.cZY(), track_n1.cZZ(),
-                                           track_n1.cSnpY(), track_n1.cSnpZ(),
-                                           track_n1.cSnpSnp(), track_n1.cTglY(), track_n1.cTglZ(),
-                                           track_n1.cTglSnp(), track_n1.cTglTgl(),
-                                           track_n1.c1PtY(), track_n1.c1PtZ(), track_n1.c1PtSnp(),
-                                           track_n1.c1PtTgl(), track_n1.c1Pt21Pt2()};
-        o2::track::TrackParCov trackparvar_n1(x_n1, alpha_n1, arraypar_n1, covpar_n1);
-        df.setUseAbsDCA(true);
-        int nCand = df.process(trackparvar_p1, trackparvar_n1);
-        if (nCand == 0)
+
+        auto trackParVarNeg1 = getTrackParCov(trackNeg1);
+
+        // reconstruct the 2-prong secondary vertex
+        if (df.process(trackParVarPos1, trackParVarNeg1) == 0)
           continue;
-        const auto& vtx = df.getPCACandidate();
-        std::array<float, 3> pvec0;
-        std::array<float, 3> pvec1;
+
+        // get vertex
+        //const auto& vtx = df.getPCACandidate();
+
+        // get track momenta
+        array<float, 3> pvec0;
+        array<float, 3> pvec1;
         df.getTrack(0).getPxPyPzGlo(pvec0);
         df.getTrack(1).getPxPyPzGlo(pvec1);
-        float mass_ = sqrt(invmass2prongs2(pvec0[0], pvec0[1],
-                                           pvec0[2], masspion,
-                                           pvec1[0], pvec1[1],
-                                           pvec1[2], masskaon));
-        float masssw_ = sqrt(invmass2prongs2(pvec0[0], pvec0[1],
-                                             pvec0[2], masskaon,
-                                             pvec1[0], pvec1[1],
-                                             pvec1[2], masspion));
-        if (b_dovalplots == true) {
-          hmass2->Fill(mass_);
-          hmass2->Fill(masssw_);
+
+        // calculate invariant masses
+        auto arrMom = array{pvec0, pvec1};
+        mass2PiK = RecoDecay::M(arrMom, array{massPi, massK});
+        mass2KPi = RecoDecay::M(arrMom, array{massK, massPi});
+
+        if (b_dovalplots) {
+          hmass2->Fill(mass2PiK);
+          hmass2->Fill(mass2KPi);
         }
-        hftrackindexprong2(track_p1.collisionId(),
-                           track_p1.globalIndex(),
-                           track_n1.globalIndex(), 1);
+
+        // fill table row
+        rowTrackIndexProng2(trackPos1.collisionId(),
+                            trackPos1.globalIndex(),
+                            trackNeg1.globalIndex(), 1);
+
+        // 3-prong vertex reconstruction
         if (do3prong == 1) {
-          //second loop on positive tracks
-          for (auto i_p2 = i_p1 + 1; i_p2 != tracks.end(); ++i_p2) {
-            auto& track_p2 = *i_p2;
-            if (track_p2.signed1Pt() < 0)
+          // second loop over positive tracks
+          //for (auto trackPos2 = trackPos1 + 1; trackPos2 != tracksPos.end(); ++trackPos2) {
+          for (auto trackPos2 = trackPos1 + 1; trackPos2 != tracks.end(); ++trackPos2) {
+            if (trackPos2.signed1Pt() < 0)
               continue;
-            float x_p2 = track_p2.x();
-            float alpha_p2 = track_p2.alpha();
-            double mass3prong2 = invmass3prongs2(track_p1.px(), track_p1.py(), track_p1.pz(), masspion,
-                                                 track_n1.px(), track_n1.py(), track_n1.pz(), masskaon,
-                                                 track_p2.px(), track_p2.py(), track_p2.pz(), masspion);
-            if (mass3prong2 < d_minmassDp * d_minmassDp || mass3prong2 > d_maxmassDp * d_maxmassDp)
+
+            // calculate invariant mass
+            auto arr3Mom = array{
+              array{trackPos1.px(), trackPos1.py(), trackPos1.pz()},
+              array{trackNeg1.px(), trackNeg1.py(), trackNeg1.pz()},
+              array{trackPos2.px(), trackPos2.py(), trackPos2.pz()}};
+            mass3PiKPi = RecoDecay::M(std::move(arr3Mom), array{massPi, massK, massPi});
+
+            if (mass3PiKPi < d_minmassDp || mass3PiKPi > d_maxmassDp)
               continue;
-            if (b_dovalplots == true)
-              hmass3->Fill(sqrt(mass3prong2));
-            std::array<float, 5> arraypar_p2 = {track_p2.y(), track_p2.z(), track_p2.snp(),
-                                                track_p2.tgl(), track_p2.signed1Pt()};
-            std::array<float, 15> covpar_p2 = {track_p2.cYY(), track_p2.cZY(), track_p2.cZZ(),
-                                               track_p2.cSnpY(), track_p2.cSnpZ(),
-                                               track_p2.cSnpSnp(), track_p2.cTglY(), track_p2.cTglZ(),
-                                               track_p2.cTglSnp(), track_p2.cTglTgl(),
-                                               track_p2.c1PtY(), track_p2.c1PtZ(), track_p2.c1PtSnp(),
-                                               track_p2.c1PtTgl(), track_p2.c1Pt21Pt2()};
-            o2::track::TrackParCov trackparvar_p2(x_p2, alpha_p2, arraypar_p2, covpar_p2);
-            df3.setUseAbsDCA(true);
-            int nCand3 = df3.process(trackparvar_p1, trackparvar_n1, trackparvar_p2);
-            if (nCand3 == 0)
+
+            auto trackParVarPos2 = getTrackParCov(trackPos2);
+
+            // reconstruct the 3-prong secondary vertex
+            if (df3.process(trackParVarPos1, trackParVarNeg1, trackParVarPos2) == 0)
               continue;
-            const auto& vtx3 = df3.getPCACandidate();
-            std::array<float, 3> pvec0;
-            std::array<float, 3> pvec1;
-            std::array<float, 3> pvec2;
-            df.getTrack(0).getPxPyPzGlo(pvec0);
-            df.getTrack(1).getPxPyPzGlo(pvec1);
-            df.getTrack(2).getPxPyPzGlo(pvec2);
-            float mass_ = sqrt(invmass3prongs2(pvec0[0], pvec0[1],
-                                               pvec0[2], masspion,
-                                               pvec1[0], pvec1[1],
-                                               pvec1[2], masskaon,
-                                               pvec2[0], pvec2[1],
-                                               pvec2[2], masspion));
-            if (b_dovalplots == true) {
-              hmass3->Fill(mass_);
+
+            // get vertex
+            //const auto& vtx3 = df3.getPCACandidate();
+
+            // get track momenta
+            array<float, 3> pvec0;
+            array<float, 3> pvec1;
+            array<float, 3> pvec2;
+            df3.getTrack(0).getPxPyPzGlo(pvec0);
+            df3.getTrack(1).getPxPyPzGlo(pvec1);
+            df3.getTrack(2).getPxPyPzGlo(pvec2);
+
+            // calculate invariant mass
+            arr3Mom = array{pvec0, pvec1, pvec2};
+            mass3PiKPi = RecoDecay::M(std::move(arr3Mom), array{massPi, massK, massPi});
+
+            if (b_dovalplots) {
+              hmass3->Fill(mass3PiKPi);
             }
-            hftrackindexprong3(track_p1.collisionId(),
-                               track_p1.globalIndex(),
-                               track_n1.globalIndex(),
-                               track_p1.globalIndex(), 2);
+
+            // fill table row
+            rowTrackIndexProng3(trackPos1.collisionId(),
+                                trackPos1.globalIndex(),
+                                trackNeg1.globalIndex(),
+                                trackPos2.globalIndex(), 2);
           }
-          //second loop on negative tracks
-          for (auto i_n2 = i_n1 + 1; i_n2 != tracks.end(); ++i_n2) {
-            auto& track_n2 = *i_n2;
-            if (track_n2.signed1Pt() > 0)
+          // second loop over negative tracks
+          //for (auto trackNeg2 = trackNeg1 + 1; trackNeg2 != tracksNeg.end(); ++trackNeg2) {
+          for (auto trackNeg2 = trackNeg1 + 1; trackNeg2 != tracks.end(); ++trackNeg2) {
+            if (trackNeg2.signed1Pt() > 0)
               continue;
-            float x_n2 = track_n2.x();
-            float alpha_n2 = track_n2.alpha();
-            double mass3prong2 = invmass3prongs2(track_n1.px(), track_n1.py(), track_n1.pz(), masspion,
-                                                 track_p1.px(), track_p1.py(), track_p1.pz(), masskaon,
-                                                 track_n2.px(), track_n2.py(), track_n2.pz(), masspion);
-            if (mass3prong2 < d_minmassDp * d_minmassDp || mass3prong2 > d_maxmassDp * d_maxmassDp)
+
+            // calculate invariant mass
+            auto arr3Mom = array{
+              array{trackNeg1.px(), trackNeg1.py(), trackNeg1.pz()},
+              array{trackPos1.px(), trackPos1.py(), trackPos1.pz()},
+              array{trackNeg2.px(), trackNeg2.py(), trackNeg2.pz()}};
+            mass3PiKPi = RecoDecay::M(std::move(arr3Mom), array{massPi, massK, massPi});
+
+            if (mass3PiKPi < d_minmassDp || mass3PiKPi > d_maxmassDp)
               continue;
-            hmass3->Fill(sqrt(mass3prong2));
-            std::array<float, 5> arraypar_n2 = {track_n2.y(), track_n2.z(), track_n2.snp(),
-                                                track_n2.tgl(), track_n2.signed1Pt()};
-            std::array<float, 15> covpar_n2 = {track_n2.cYY(), track_n2.cZY(), track_n2.cZZ(),
-                                               track_n2.cSnpY(), track_n2.cSnpZ(),
-                                               track_n2.cSnpSnp(), track_n2.cTglY(), track_n2.cTglZ(),
-                                               track_n2.cTglSnp(), track_n2.cTglTgl(),
-                                               track_n2.c1PtY(), track_n2.c1PtZ(), track_n2.c1PtSnp(),
-                                               track_n2.c1PtTgl(), track_n2.c1Pt21Pt2()};
-            o2::track::TrackParCov trackparvar_n2(x_n2, alpha_n2, arraypar_n2, covpar_n2);
-            df3.setUseAbsDCA(true);
-            int nCand3 = df3.process(trackparvar_n1, trackparvar_p1, trackparvar_n2);
-            if (nCand3 == 0)
+
+            auto trackParVarNeg2 = getTrackParCov(trackNeg2);
+
+            // reconstruct the 3-prong secondary vertex
+            if (df3.process(trackParVarNeg1, trackParVarPos1, trackParVarNeg2) == 0)
               continue;
-            const auto& vtx3 = df3.getPCACandidate();
-            std::array<float, 3> pvec0;
-            std::array<float, 3> pvec1;
-            std::array<float, 3> pvec2;
-            df.getTrack(0).getPxPyPzGlo(pvec0);
-            df.getTrack(1).getPxPyPzGlo(pvec1);
-            df.getTrack(2).getPxPyPzGlo(pvec2);
-            float mass_ = sqrt(invmass3prongs2(pvec0[0], pvec0[1],
-                                               pvec0[2], masspion,
-                                               pvec1[0], pvec1[1],
-                                               pvec1[2], masskaon,
-                                               pvec2[0], pvec2[1],
-                                               pvec2[2], masspion));
-            if (b_dovalplots == true) {
-              hmass3->Fill(mass_);
+
+            // get vertex
+            //const auto& vtx3 = df3.getPCACandidate();
+
+            // get track momenta
+            array<float, 3> pvec0;
+            array<float, 3> pvec1;
+            array<float, 3> pvec2;
+            df3.getTrack(0).getPxPyPzGlo(pvec0);
+            df3.getTrack(1).getPxPyPzGlo(pvec1);
+            df3.getTrack(2).getPxPyPzGlo(pvec2);
+
+            // calculate invariant mass
+            arr3Mom = array{pvec0, pvec1, pvec2};
+            mass3PiKPi = RecoDecay::M(std::move(arr3Mom), array{massPi, massK, massPi});
+
+            if (b_dovalplots) {
+              hmass3->Fill(mass3PiKPi);
             }
-            hftrackindexprong3(track_n1.collisionId(),
-                               track_n1.globalIndex(),
-                               track_p1.globalIndex(),
-                               track_n1.globalIndex(), 2.);
+
+            // fill table row
+            rowTrackIndexProng3(trackNeg1.collisionId(),
+                                trackNeg1.globalIndex(),
+                                trackPos1.globalIndex(),
+                                trackNeg2.globalIndex(), 2);
           }
         }
       }

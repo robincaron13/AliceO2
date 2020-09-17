@@ -72,26 +72,28 @@ void RawFileReader::LinkData::print(bool verbose, const std::string& pref) const
 }
 
 //____________________________________________
-size_t RawFileReader::LinkData::getNextTFSuperPagesStat(std::vector<size_t>& parts) const
+size_t RawFileReader::LinkData::getNextTFSuperPagesStat(std::vector<RawFileReader::PartStat>& parts) const
 {
   // get stat. of superpages for this link in this TF. We treat as a start of a superpage the discontinuity in the link data, new TF
   // or continuous data exceeding a threshold (e.g. 1MB)
-  size_t sz = 0;
+  int sz = 0;
   int nSP = 0;
-  int ibl = nextBlock2Read, nbl = blocks.size();
+  int ibl = nextBlock2Read, nbl = blocks.size(), nblPart = 0;
   parts.clear();
   while (ibl < nbl && (blocks[ibl].tfID == blocks[nextBlock2Read].tfID)) {
     if (ibl > nextBlock2Read && (blocks[ibl].testFlag(LinkBlock::StartSP) ||
                                  (sz + blocks[ibl].size) > reader->mNominalSPageSize ||
                                  (blocks[ibl - 1].offset + blocks[ibl - 1].size) < blocks[ibl].offset)) { // new superpage
-      parts.push_back(sz);
+      parts.emplace_back(RawFileReader::PartStat{sz, nblPart});
       sz = 0;
+      nblPart = 0;
     }
     sz += blocks[ibl].size;
+    nblPart++;
     ibl++;
   }
   if (sz) {
-    parts.push_back(sz);
+    parts.emplace_back(RawFileReader::PartStat{sz, nblPart});
   }
   return parts.size();
 }
@@ -118,16 +120,23 @@ size_t RawFileReader::LinkData::readNextHBF(char* buff)
   int ibl = nextBlock2Read, nbl = blocks.size();
   bool error = false;
   while (ibl < nbl) {
-    const auto& blc = blocks[ibl];
+    auto& blc = blocks[ibl];
     if (blc.ir != blocks[nextBlock2Read].ir) {
       break;
     }
     ibl++;
-    auto fl = reader->mFiles[blc.fileID];
-    if (fseek(fl, blc.offset, SEEK_SET) || fread(buff + sz, 1, blc.size, fl) != blc.size) {
-      LOGF(ERROR, "Failed to read for the %s a bloc:", describe());
-      blc.print();
-      error = true;
+    if (blc.dataCache) {
+      memcpy(buff + sz, blc.dataCache.get(), blc.size);
+    } else {
+      auto fl = reader->mFiles[blc.fileID];
+      if (fseek(fl, blc.offset, SEEK_SET) || fread(buff + sz, 1, blc.size, fl) != blc.size) {
+        LOGF(ERROR, "Failed to read for the %s a bloc:", describe());
+        blc.print();
+        error = true;
+      } else if (reader->mCacheData) { // need to fill the cache at 1st reading
+        blc.dataCache = std::make_unique<char[]>(blc.size);
+        memcpy(blc.dataCache.get(), buff + sz, blc.size); // will be used at next reading
+      }
     }
     sz += blc.size;
   }
@@ -226,30 +235,43 @@ int RawFileReader::LinkData::getNHBFinTF() const
 }
 
 //____________________________________________
-size_t RawFileReader::LinkData::readNextSuperPage(char* buff)
+size_t RawFileReader::LinkData::readNextSuperPage(char* buff, const RawFileReader::PartStat* pstat)
 {
   // read data of the next complete HB, buffer of getNextHBFSize() must be allocated in advance
   size_t sz = 0;
   int ibl = nextBlock2Read, nbl = blocks.size();
   auto tfID = blocks[nextBlock2Read].tfID;
   bool error = false;
-
-  while (ibl < nbl) {
-    const auto& blc = blocks[ibl];
-    if (ibl > nextBlock2Read && (blc.tfID != blocks[nextBlock2Read].tfID ||
-                                 blc.testFlag(LinkBlock::StartSP) ||
-                                 (sz + blc.size) > reader->mNominalSPageSize ||
-                                 blocks[ibl - 1].offset + blocks[ibl - 1].size < blc.offset)) { // new superpage or TF
-      break;
+  if (pstat) { // info is provided, use it derictly
+    sz = pstat->size;
+    ibl += pstat->nBlocks;
+  } else { // need to calculate blocks to read
+    while (ibl < nbl) {
+      auto& blc = blocks[ibl];
+      if (ibl > nextBlock2Read && (blc.tfID != blocks[nextBlock2Read].tfID ||
+                                   blc.testFlag(LinkBlock::StartSP) ||
+                                   (sz + blc.size) > reader->mNominalSPageSize ||
+                                   blocks[ibl - 1].offset + blocks[ibl - 1].size < blc.offset)) { // new superpage or TF
+        break;
+      }
+      ibl++;
+      sz += blc.size;
     }
-    ibl++;
-    auto fl = reader->mFiles[blc.fileID];
-    if (fseek(fl, blc.offset, SEEK_SET) || fread(buff + sz, 1, blc.size, fl) != blc.size) {
-      LOGF(ERROR, "Failed to read for the %s a bloc:", describe());
-      blc.print();
-      error = true;
+  }
+  if (sz) {
+    if (reader->mCacheData && blocks[nextBlock2Read].dataCache) {
+      memcpy(buff, blocks[nextBlock2Read].dataCache.get(), sz);
+    } else {
+      auto fl = reader->mFiles[blocks[nextBlock2Read].fileID];
+      if (fseek(fl, blocks[nextBlock2Read].offset, SEEK_SET) || fread(buff, 1, sz, fl) != sz) {
+        LOGF(ERROR, "Failed to read for the %s a bloc:", describe());
+        blocks[nextBlock2Read].print();
+        error = true;
+      } else if (reader->mCacheData) { // cache after 1st reading
+        blocks[nextBlock2Read].dataCache = std::make_unique<char[]>(sz);
+        memcpy(blocks[nextBlock2Read].dataCache.get(), buff, sz);
+      }
     }
-    sz += blc.size;
   }
   nextBlock2Read = ibl;
   return error ? 0 : sz; // in case of the error we ignore the data
@@ -446,7 +468,7 @@ bool RawFileReader::LinkData::preprocessCRUPage(const RDHAny& rdh, bool newSPage
 //====================== methods of RawFileReader ========================
 
 //_____________________________________________________________________
-RawFileReader::RawFileReader(const std::string& config, int verbosity) : mVerbosity(verbosity)
+RawFileReader::RawFileReader(const std::string& config, int verbosity, size_t buffSize) : mVerbosity(verbosity), mBufferSize(buffSize)
 {
   if (!config.empty()) {
     auto inp = parseInput(config);
@@ -490,7 +512,7 @@ bool RawFileReader::preprocessFile(int ifl)
   long int nr = 0;
   mPosInFile = 0;
   size_t nRDHread = 0, boffs;
-  bool ok = true, readMore = true;
+  bool readMore = true;
   while (readMore && (nr = fread(buffer.get(), 1, mBufferSize, fl))) {
     boffs = 0;
     while (1) {
@@ -534,7 +556,7 @@ bool RawFileReader::preprocessFile(int ifl)
   }
   LOGF(INFO, "File %3d : %9li bytes scanned, %6d RDH read for %4d links from %s",
        mCurrentFileID, mPosInFile, nRDHread, int(mLinkEntries.size()), mFileNames[mCurrentFileID]);
-  return ok;
+  return nRDHread > 0;
 }
 
 //_____________________________________________________________________
@@ -573,12 +595,16 @@ bool RawFileReader::addFile(const std::string& sname, o2::header::DataOrigin ori
     LOG(ERROR) << "Cannot add new files after initialization";
     return false;
   }
-  auto inFile = fopen(sname.c_str(), "rb");
   bool ok = true;
+
+  mFileBuffers.push_back(std::make_unique<char[]>(mBufferSize));
+  auto inFile = fopen(sname.c_str(), "rb");
   if (!inFile) {
     LOG(ERROR) << "Failed to open input file " << sname;
-    ok = false;
+    return false;
   }
+  setvbuf(inFile, mFileBuffers.back().get(), _IOFBF, mBufferSize);
+
   if (origin == o2h::gDataOriginInvalid) {
     LOG(ERROR) << "Invalid data origin " << origin.as<std::string>() << " for file " << sname;
     ok = false;
@@ -589,8 +615,8 @@ bool RawFileReader::addFile(const std::string& sname, o2::header::DataOrigin ori
   }
   if (!ok) {
     fclose(inFile);
+    return false;
   }
-
   mFileNames.push_back(sname);
   mFiles.push_back(inFile);
   mDataSpecs.emplace_back(origin, desc, t);
@@ -612,9 +638,11 @@ bool RawFileReader::init()
   }
 
   int nf = mFiles.size();
-  bool ok = true;
+  mEmpty = true;
   for (int i = 0; i < nf; i++) {
-    ok &= preprocessFile(i);
+    if (preprocessFile(i)) {
+      mEmpty = false;
+    }
   }
   mOrderedIDs.resize(mLinksData.size());
   for (int i = mLinksData.size(); i--;) {
@@ -665,7 +693,7 @@ bool RawFileReader::init()
   }
   mInitDone = true;
 
-  return ok;
+  return !mEmpty;
 }
 
 //_____________________________________________________________________
@@ -717,7 +745,9 @@ void RawFileReader::loadFromInputsMap(const RawFileReader::InputsMap& inp)
       continue;
     }
     for (const auto& fnm : files) { // specific file names
-      addFile(fnm, std::get<0>(ordesc), std::get<1>(ordesc), std::get<2>(ordesc));
+      if (!addFile(fnm, std::get<0>(ordesc), std::get<1>(ordesc), std::get<2>(ordesc))) {
+        throw std::runtime_error("wrong raw data file path or origin/description");
+      }
     }
   }
 }

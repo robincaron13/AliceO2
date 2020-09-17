@@ -144,17 +144,18 @@ class GeometryTGeo : public o2::itsmft::GeometryTGeo
   static const char* composeSymNameMFT() { return o2::detectors::DetID(o2::detectors::DetID::MFT).getName(); }
 
   /// sym name of the half
-  static const char* composeSymNameHalf(int hf);
+  const char* composeSymNameHalf(int hf);
 
   /// Sym name of the disk at given half
-  static const char* composeSymNameDisk(int hf, int dk);
+  const char* composeSymNameDisk(int hf, int dk);
 
   /// Sym name of the ladder at given half/disk
-  static const char* composeSymNameLadder(int hf, int dk, int lr);
+  const char* composeSymNameLadder(int hf, int dk, int lr);
 
   /// Sym name of the chip in the given half/disk/ladder
-  static const char* composeSymNameChip(int hf, int dk, int lr, int chip);
+  const char* composeSymNameChip(int hf, int dk, int lr, int chip);
 
+    
  protected:
   /// Determines the number of detector halves in the Geometry
   Int_t extractNumberOfHalves();

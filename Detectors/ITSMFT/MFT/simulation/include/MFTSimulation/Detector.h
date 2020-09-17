@@ -118,6 +118,9 @@ class Detector : public o2::base::DetImpl<Detector>
   void addAlignableVolumesChip(Int_t hf, Int_t dk, Int_t lr, Int_t ms, TString& parent,
                                Int_t& lastUID) const;
 
+  //bool MisalignGeometry() override{ ; } // inherited from FairApplication (!)
+  void MisalignGeometryTest() const;
+    
   void EndOfEvent() override;
 
   void FinishPrimary() override { ; }

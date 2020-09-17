@@ -7,114 +7,126 @@
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
+
+/// \file hfcandidatecreator2prong.cxx
+/// \brief Reconstruction of heavy-flavour 2-prong decay candidates
+///
+/// \author Gian Michele Innocenti <gian.michele.innocenti@cern.ch>, CERN
+/// \author Vít Kučera <vit.kucera@cern.ch>, CERN
+
 #include "Framework/runDataProcessing.h"
 #include "Framework/AnalysisTask.h"
-#include "Framework/AnalysisDataModel.h"
-#include "Framework/ASoAHelpers.h"
-#include "Analysis/SecondaryVertexHF.h"
 #include "DetectorsVertexing/DCAFitterN.h"
-#include "ReconstructionDataFormats/Track.h"
-#include "Analysis/RecoDecay.h"
-
-#include <TFile.h>
-#include <TH1F.h>
-#include <cmath>
-#include <array>
-#include <cstdlib>
+#include "Analysis/SecondaryVertexHF.h"
+#include "Analysis/trackUtilities.h"
+#include "ReconstructionDataFormats/DCA.h"
 
 using namespace o2;
 using namespace o2::framework;
-using namespace o2::framework::expressions;
 using std::array;
 
+/// Reconstruction of heavy-flavour 2-prong decay candidates
 struct HFCandidateCreator2Prong {
-  Produces<aod::HfCandProng2> hfcandprong2;
+  Produces<aod::HfCandBase> rowCandidateBase;
+  //Produces<aod::HfCandProng2Base> rowCandidateProng2Base; // TODO split table
+  Configurable<double> magneticField{"d_bz", 5.0, "magnetic field"};
+  Configurable<bool> b_propdca{"b_propdca", true, "create tracks version propagated to PCA"};
+  Configurable<double> d_maxr{"d_maxr", 200., "reject PCA's above this radius"};
+  Configurable<double> d_maxdzini{"d_maxdzini", 4., "reject (if>0) PCA candidate if tracks DZ exceeds threshold"};
+  Configurable<double> d_minparamchange{"d_minparamchange", 1.e-3, "stop iterations if largest change of any X is smaller than this"};
+  Configurable<double> d_minrelchi2change{"d_minrelchi2change", 0.9, "stop iterations is chi2/chi2old > this"};
   Configurable<bool> b_dovalplots{"b_dovalplots", true, "do validation plots"};
   OutputObj<TH1F> hvtx_x_out{TH1F("hvtx_x", "2-track vtx", 100, -0.1, 0.1)};
   OutputObj<TH1F> hvtx_y_out{TH1F("hvtx_y", "2-track vtx", 100, -0.1, 0.1)};
   OutputObj<TH1F> hvtx_z_out{TH1F("hvtx_z", "2-track vtx", 100, -0.1, 0.1)};
-  OutputObj<TH1F> hmass2{TH1F("hmass2", "2-track inv mass", 500, 0, 5.0)};
-  Configurable<double> d_bz{"d_bz", 5.0, "bz field"};
-  Configurable<bool> b_propdca{"b_propdca", true,
-                               "create tracks version propagated to PCA"};
-  Configurable<double> d_maxr{"d_maxr", 200, "reject PCA's above this radius"};
-  Configurable<double> d_maxdzini{"d_maxdzini", 4,
-                                  "reject (if>0) PCA candidate if tracks DZ exceeds threshold"};
-  Configurable<double> d_minparamchange{"d_minparamchange", 1e-3,
-                                        "stop iterations if largest change of any X is smaller than this"};
-  Configurable<double> d_minrelchi2change{"d_minrelchi2change", 0.9,
-                                          "stop iterations is chi2/chi2old > this"};
+  OutputObj<TH1F> hmass2{TH1F("hmass2", "2-track inv mass", 500, 0., 5.0)};
+
+  double massPi = RecoDecay::getMassPDG(kPiPlus);
+  double massK = RecoDecay::getMassPDG(kKPlus);
+  double massPiK{0};
+  double massKPi{0};
+
   void process(aod::Collision const& collision,
-               aod::HfTrackIndexProng2 const& hftrackindexprong2s,
+               aod::HfTrackIndexProng2 const& rowsTrackIndexProng2,
                soa::Join<aod::Tracks, aod::TracksCov, aod::TracksExtra> const& tracks)
   {
+    // 2-prong vertex fitter
     o2::vertexing::DCAFitterN<2> df;
-    df.setBz(d_bz);
+    df.setBz(magneticField);
     df.setPropagateToPCA(b_propdca);
     df.setMaxR(d_maxr);
     df.setMaxDZIni(d_maxdzini);
     df.setMinParamChange(d_minparamchange);
     df.setMinRelChi2Change(d_minrelchi2change);
+    df.setUseAbsDCA(true);
 
-    for (auto& hfpr2 : hftrackindexprong2s) {
-      float x_p1 = hfpr2.index0().x();
-      float alpha_p1 = hfpr2.index0().alpha();
-      std::array<float, 5> arraypar_p1 = {hfpr2.index0().y(), hfpr2.index0().z(), hfpr2.index0().snp(),
-                                          hfpr2.index0().tgl(), hfpr2.index0().signed1Pt()};
-      std::array<float, 15> covpar_p1 = {hfpr2.index0().cYY(), hfpr2.index0().cZY(), hfpr2.index0().cZZ(),
-                                         hfpr2.index0().cSnpY(), hfpr2.index0().cSnpZ(),
-                                         hfpr2.index0().cSnpSnp(), hfpr2.index0().cTglY(), hfpr2.index0().cTglZ(),
-                                         hfpr2.index0().cTglSnp(), hfpr2.index0().cTglTgl(),
-                                         hfpr2.index0().c1PtY(), hfpr2.index0().c1PtZ(), hfpr2.index0().c1PtSnp(),
-                                         hfpr2.index0().c1PtTgl(), hfpr2.index0().c1Pt21Pt2()};
-      o2::track::TrackParCov trackparvar_p1(x_p1, alpha_p1, arraypar_p1, covpar_p1);
+    // loop over pairs of track indeces
+    for (const auto& rowTrackIndexProng2 : rowsTrackIndexProng2) {
+      auto trackParVarPos1 = getTrackParCov(rowTrackIndexProng2.index0());
+      auto trackParVarNeg1 = getTrackParCov(rowTrackIndexProng2.index1());
 
-      float x_n1 = hfpr2.index1().x();
-      float alpha_n1 = hfpr2.index1().alpha();
-      std::array<float, 5> arraypar_n1 = {hfpr2.index1().y(), hfpr2.index1().z(), hfpr2.index1().snp(),
-                                          hfpr2.index1().tgl(), hfpr2.index1().signed1Pt()};
-      std::array<float, 15> covpar_n1 = {hfpr2.index1().cYY(), hfpr2.index1().cZY(), hfpr2.index1().cZZ(),
-                                         hfpr2.index1().cSnpY(), hfpr2.index1().cSnpZ(),
-                                         hfpr2.index1().cSnpSnp(), hfpr2.index1().cTglY(), hfpr2.index1().cTglZ(),
-                                         hfpr2.index1().cTglSnp(), hfpr2.index1().cTglTgl(),
-                                         hfpr2.index1().c1PtY(), hfpr2.index1().c1PtZ(), hfpr2.index1().c1PtSnp(),
-                                         hfpr2.index1().c1PtTgl(), hfpr2.index1().c1Pt21Pt2()};
-      o2::track::TrackParCov trackparvar_n1(x_n1, alpha_n1, arraypar_n1, covpar_n1);
-      df.setUseAbsDCA(true);
-      int nCand = df.process(trackparvar_p1, trackparvar_n1);
-      if (nCand == 0)
+      // reconstruct the 2-prong secondary vertex
+      if (df.process(trackParVarPos1, trackParVarNeg1) == 0)
         continue;
-      const auto& vtx = df.getPCACandidate();
-      std::array<float, 3> pvec0;
-      std::array<float, 3> pvec1;
-      df.getTrack(0).getPxPyPzGlo(pvec0);
-      df.getTrack(1).getPxPyPzGlo(pvec1);
-      float masspion = 0.140;
-      float masskaon = 0.494;
-      float mass_ = sqrt(invmass2prongs2(pvec0[0], pvec0[1],
-                                         pvec0[2], masspion,
-                                         pvec1[0], pvec1[1],
-                                         pvec1[2], masskaon));
-      float masssw_ = sqrt(invmass2prongs2(pvec0[0], pvec0[1],
-                                           pvec0[2], masskaon,
-                                           pvec1[0], pvec1[1],
-                                           pvec1[2], masspion));
-      hfcandprong2(collision.posX(), collision.posY(), collision.posZ(),
-                   pvec0[0], pvec0[1], pvec0[2], pvec1[0], pvec1[1], pvec1[2],
-                   vtx[0], vtx[1], vtx[2], mass_, masssw_);
-      if (b_dovalplots == true) {
-        hvtx_x_out->Fill(vtx[0]);
-        hvtx_y_out->Fill(vtx[1]);
-        hvtx_z_out->Fill(vtx[2]);
-        hmass2->Fill(mass_);
-        hmass2->Fill(masssw_);
+      const auto& secondaryVertex = df.getPCACandidate();
+      auto trackParVar0 = df.getTrack(0);
+      auto trackParVar1 = df.getTrack(1);
+
+      // get track momenta
+      array<float, 3> pvec0;
+      array<float, 3> pvec1;
+      trackParVar0.getPxPyPzGlo(pvec0);
+      trackParVar1.getPxPyPzGlo(pvec1);
+
+      // calculate invariant masses
+      auto arrayMomenta = array{pvec0, pvec1};
+      massPiK = RecoDecay::M(arrayMomenta, array{massPi, massK});
+      massKPi = RecoDecay::M(arrayMomenta, array{massK, massPi});
+
+      // get track impact parameters
+      // This modifies track momenta!
+      auto primaryVertex = getPrimaryVertex(collision);
+      o2::dataformats::DCA impactParameter0;
+      o2::dataformats::DCA impactParameter1;
+      trackParVar0.propagateToDCA(primaryVertex, magneticField, &impactParameter0);
+      trackParVar1.propagateToDCA(primaryVertex, magneticField, &impactParameter1);
+
+      // TODO
+      float dcaDaughters = 0.;
+      float errorDecayLength = 1., errorDecayLengthXY = 1.;
+
+      // fill candidate table rows
+      rowCandidateBase(collision.posX(), collision.posY(), collision.posZ(),
+                       secondaryVertex[0], secondaryVertex[1], secondaryVertex[2],
+                       errorDecayLength, errorDecayLengthXY, //);
+                                                             //rowCandidateProng2Base( // TODO split table
+                       pvec0[0], pvec0[1], pvec0[2],
+                       pvec1[0], pvec1[1], pvec1[2],
+                       impactParameter0.getY(), impactParameter1.getY(),
+                       std::sqrt(impactParameter0.getSigmaY2()), std::sqrt(impactParameter1.getSigmaY2()),
+                       dcaDaughters);
+
+      // fill histograms
+      if (b_dovalplots) {
+        hvtx_x_out->Fill(secondaryVertex[0]);
+        hvtx_y_out->Fill(secondaryVertex[1]);
+        hvtx_z_out->Fill(secondaryVertex[2]);
+        hmass2->Fill(massPiK);
+        hmass2->Fill(massKPi);
       }
     }
   }
 };
 
+/// Extends the base table with expression columns.
+struct HFCandidateCreator2ProngExpressions {
+  Spawns<aod::HfCandProng2Ext> rowCandidateProng2;
+  void init(InitContext const&) {}
+};
+
 WorkflowSpec defineDataProcessing(ConfigContext const&)
 {
   return WorkflowSpec{
-    adaptAnalysisTask<HFCandidateCreator2Prong>("vertexerhf-hfcandcreator2prong")};
+    adaptAnalysisTask<HFCandidateCreator2Prong>("vertexerhf-hfcandcreator2prong"),
+    adaptAnalysisTask<HFCandidateCreator2ProngExpressions>("vertexerhf-hfcandcreator2prong-expressions")};
 }

@@ -9,17 +9,18 @@
 # submit itself to any jurisdiction.
 
 o2_add_library(MFTSimulation
-               SOURCES 	src/Detector.cxx 
+               SOURCES 	src/Detector.cxx
 			src/DigitizerTask.cxx
-			src/GeometryTest.cxx
 			src/GeometryMisAligner.cxx
+			src/GeometryTest.cxx
                PUBLIC_LINK_LIBRARIES O2::MFTBase ROOT::Physics)
 
 o2_target_root_dictionary(MFTSimulation
                           HEADERS 	include/MFTSimulation/Detector.h
                                   	include/MFTSimulation/DigitizerTask.h
+					include/MFTSimulation/GeometryMisAligner.h
 					include/MFTSimulation/GeometryTest.h
-					include/MFTSimulation/GeometryMisAligner.h)
+					)
 
 
 o2_data_file(COPY data  DESTINATION Detectors/MFT/simulation)

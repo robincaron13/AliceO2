@@ -33,6 +33,10 @@
 #include "ITStracking/IOUtils.h"
 #include "DetectorsCommonDataFormats/NameConf.h"
 #include "DataFormatsParameters/GRPObject.h"
+#include "Headers/DataHeader.h"
+
+// RSTODO to remove once the framework will start propagating the header.firstTForbit
+#include "DetectorsRaw/HBFUtils.h"
 
 using namespace o2::framework;
 using MCLabelContainer = o2::dataformats::MCTruthContainer<o2::MCCompLabel>;
@@ -97,7 +101,7 @@ void TPCITSMatchingDPL::run(ProcessingContext& pc)
   //---------------------------->> TPC Clusters loading >>------------------------------------------
   int operation = 0;
   uint64_t activeSectors = 0;
-  std::bitset<o2::tpc::Constants::MAXSECTOR> validSectors = 0;
+  std::bitset<o2::tpc::constants::MAXSECTOR> validSectors = 0;
   std::map<int, DataRef> datarefs;
   std::vector<InputSpec> filter = {
     {"check", ConcreteDataTypeMatcher{"TPC", "CLUSTERNATIVE"}, Lifetime::Timeframe},
@@ -110,7 +114,7 @@ void TPCITSMatchingDPL::run(ProcessingContext& pc)
       throw std::runtime_error("sector header missing on header stack");
     }
     int sector = sectorHeader->sector();
-    std::bitset<o2::tpc::Constants::MAXSECTOR> sectorMask(sectorHeader->sectorBits);
+    std::bitset<o2::tpc::constants::MAXSECTOR> sectorMask(sectorHeader->sectorBits);
     LOG(INFO) << "Reading TPC cluster data, sector mask is " << sectorMask;
     if ((validSectors & sectorMask).any()) {
       // have already data for this sector, this should not happen in the current
@@ -129,7 +133,7 @@ void TPCITSMatchingDPL::run(ProcessingContext& pc)
               << std::endl                                                                   //
               << "  input status:   " << validSectors                                        //
               << std::endl                                                                   //
-              << "  active sectors: " << std::bitset<o2::tpc::Constants::MAXSECTOR>(activeSectors);
+              << "  active sectors: " << std::bitset<o2::tpc::constants::MAXSECTOR>(activeSectors);
   };
 
   if (activeSectors == 0 || (activeSectors & validSectors.to_ulong()) != activeSectors) {
@@ -239,6 +243,14 @@ void TPCITSMatchingDPL::run(ProcessingContext& pc)
     // worker and the underlying memory is valid throughout the whole computation
     auto fitInfo = pc.inputs().get<gsl::span<o2::ft0::RecPoints>>("fitInfo");
     mMatching.setFITInfoInp(fitInfo);
+  }
+
+  const auto* dh = o2::header::get<o2::header::DataHeader*>(pc.inputs().get("trackITSROF").header);
+  mMatching.setStartIR({0, dh->firstTForbit});
+
+  //RSTODO: below is a hack, to remove once the framework will start propagating the header.firstTForbit
+  if (tracksITSROF.size()) {
+    mMatching.setStartIR(o2::raw::HBFUtils::Instance().getFirstIRofTF(tracksITSROF[0].getBCData()));
   }
 
   mMatching.run();

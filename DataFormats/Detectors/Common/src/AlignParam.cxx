@@ -17,6 +17,8 @@
 #include <TGeoOverlap.h>
 #include <TGeoPhysicalNode.h>
 
+#include "TRandom.h"
+
 #include "DetectorsCommonDataFormats/AlignParam.h"
 
 using namespace o2::detectors;
@@ -103,8 +105,8 @@ bool AlignParam::setRotation(const TGeoMatrix& m)
     double psi, theta, phi;
     if (!matrixToAngles(rot, psi, theta, phi)) {
       return false;
-      setRotation(psi, theta, phi);
     }
+    setRotation(psi, theta, phi);
   } else {
     mPsi = mTheta = mPhi = 0.;
   }
@@ -190,7 +192,10 @@ bool AlignParam::setLocalParams(const TGeoMatrix& m)
   m1.Multiply(&gprimeinv);
   m1.MultiplyLeft(&gprime);
 
-  return setLocalParams(m1);
+  setParams(m1);
+    
+  return true;
+
 }
 
 //_____________________________________________________________________________
@@ -259,7 +264,7 @@ bool AlignParam::applyToGeometry(bool ovlpcheck, double ovlToler)
     path = pne->GetTitle();
     node = gGeoManager->MakeAlignablePN(pne);
   } else {
-    LOG(DEBUG) << "The symbolic volume name " << symname
+    LOG(INFO) << "The symbolic volume name " << symname
                << " does not correspond to a physical entry. Using it as a volume path!";
     path = symname;
     if (!gGeoManager->CheckPath(path)) {

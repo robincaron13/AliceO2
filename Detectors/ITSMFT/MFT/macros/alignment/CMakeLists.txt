@@ -1,16 +1,13 @@
-# Copyright CERN and copyright holders of ALICE O2. This software is distributed
-# under the terms of the GNU General Public License v3 (GPL Version 3), copied
-# verbatim in the file "COPYING".
+#Copyright CERN and copyright holders of ALICE O2.This software is distributed
+#under the terms of the GNU General Public License v3(GPL Version 3), copied
+#verbatim in the file "COPYING".
 #
-# See http://alice-o2.web.cern.ch/license for full licensing information.
+#See http: //alice-o2.web.cern.ch/license for full licensing information.
 #
-# In applying this license CERN does not waive the privileges and immunities
-# granted to it by virtue of its status as an Intergovernmental Organization or
-# submit itself to any jurisdiction.
+#In applying this license CERN does not waive the privileges and immunities
+#granted to it by virtue of its status as an Intergovernmental Organization or
+#submit itself to any jurisdiction.
 
-o2_add_test_root_macro(MisalignGeometry.C 
-			NAME o2-test-mft-geometry-misalign
-        		COMPONENT_NAME mft
-                       	PUBLIC_LINK_LIBRARIES O2::MFTSimulation O2::MFTBase
-                       	LABELS itsmft mft macros alignment)
-	
+o2_add_test_root_macro(MisalignGeometry.C
+                       PUBLIC_LINK_LIBRARIES O2::MFTSimulation O2::MFTBase
+                       LABELS mft)

@@ -86,3 +86,94 @@ void CTFCoder::setCompClusAddresses(CompressedClusters& c, void*& buff)
     setAlignedPtr(buff, c.nTrackClusters, header.nTracks);
   }
 }
+
+///________________________________
+void CTFCoder::createCoders(const std::string& dictPath, o2::ctf::CTFCoderBase::OpType op)
+{
+  bool mayFail = true; // RS FIXME if the dictionary file is not there, do not produce exception
+  auto buff = readDictionaryFromFile<CTF>(dictPath, mayFail);
+  if (!buff.size()) {
+    if (mayFail) {
+      return;
+    }
+    throw std::runtime_error("Failed to create CTF dictionaty");
+  }
+  const auto* ctf = CTF::get(buff.data());
+
+  auto getFreq = [ctf](CTF::Slots slot) -> o2::rans::FrequencyTable {
+    o2::rans::FrequencyTable ft;
+    auto bl = ctf->getBlock(slot);
+    auto md = ctf->getMetadata(slot);
+    ft.addFrequencies(bl.getDict(), bl.getDict() + bl.getNDict(), md.min, md.max);
+    return std::move(ft);
+  };
+  auto getProbBits = [ctf](CTF::Slots slot) -> int {
+    return ctf->getMetadata(slot).probabilityBits;
+  };
+
+  CompressedClusters cc; // just to get member types
+#define MAKECODER(part, slot) createCoder<std::remove_pointer<decltype(part)>::type>(op, getFreq(slot), getProbBits(slot), int(slot))
+  // clang-format off
+  MAKECODER(cc.qTotA,             CTF::BLCqTotA);
+  MAKECODER(cc.qMaxA,             CTF::BLCqMaxA);
+  MAKECODER(cc.flagsA,            CTF::BLCflagsA);
+  MAKECODER(cc.rowDiffA,          CTF::BLCrowDiffA);
+  MAKECODER(cc.sliceLegDiffA,     CTF::BLCsliceLegDiffA);
+  MAKECODER(cc.padResA,           CTF::BLCpadResA);
+  MAKECODER(cc.timeResA,          CTF::BLCtimeResA);
+  MAKECODER(cc.sigmaPadA,         CTF::BLCsigmaPadA);
+  MAKECODER(cc.sigmaTimeA,        CTF::BLCsigmaTimeA);
+  MAKECODER(cc.qPtA,              CTF::BLCqPtA);
+  MAKECODER(cc.rowA,              CTF::BLCrowA);
+  MAKECODER(cc.sliceA,            CTF::BLCsliceA);
+  MAKECODER(cc.timeA,             CTF::BLCtimeA);
+  MAKECODER(cc.padA,              CTF::BLCpadA);
+  MAKECODER(cc.qTotU,             CTF::BLCqTotU);
+  MAKECODER(cc.qMaxU,             CTF::BLCqMaxU);
+  MAKECODER(cc.flagsU,            CTF::BLCflagsU);
+  MAKECODER(cc.padDiffU,          CTF::BLCpadDiffU);
+  MAKECODER(cc.timeDiffU,         CTF::BLCtimeDiffU);
+  MAKECODER(cc.sigmaPadU,         CTF::BLCsigmaPadU);
+  MAKECODER(cc.sigmaTimeU,        CTF::BLCsigmaTimeU);
+  MAKECODER(cc.nTrackClusters,    CTF::BLCnTrackClusters);
+  MAKECODER(cc.nSliceRowClusters, CTF::BLCnSliceRowClusters);
+  // clang-format on
+}
+
+///________________________________
+size_t CTFCoder::estimateCompressedSize(const CompressedClusters& ccl)
+{
+  size_t sz = 0;
+  // clang-format off
+  // RS FIXME this is very crude estimate, instead, an empirical values should be used
+#define ESTSIZE(slot, ptr, n) mCoders[int(slot)] ? \
+    rans::calculateMaxBufferSize(n, reinterpret_cast<const o2::rans::LiteralEncoder64<std::remove_pointer<decltype(ptr)>::type>*>(mCoders[int(slot)].get())->getAlphabetRangeBits(), \
+                                 sizeof(std::remove_pointer<decltype(ptr)>::type)) : n*sizeof(std::remove_pointer<decltype(ptr)>)
+  sz += ESTSIZE(CTF::BLCqTotA,	           ccl.qTotA,  	          ccl.nAttachedClusters);
+  sz += ESTSIZE(CTF::BLCqMaxA,	           ccl.qMaxA,  	          ccl.nAttachedClusters);
+  sz += ESTSIZE(CTF::BLCflagsA,	           ccl.flagsA, 	          ccl.nAttachedClusters);
+  sz += ESTSIZE(CTF::BLCrowDiffA,	   ccl.rowDiffA,	  ccl.nAttachedClustersReduced);
+  sz += ESTSIZE(CTF::BLCsliceLegDiffA,     ccl.sliceLegDiffA,     ccl.nAttachedClustersReduced);
+  sz += ESTSIZE(CTF::BLCpadResA,	   ccl.padResA,	          ccl.nAttachedClustersReduced);
+  sz += ESTSIZE(CTF::BLCtimeResA,	   ccl.timeResA,	  ccl.nAttachedClustersReduced);
+  sz += ESTSIZE(CTF::BLCsigmaPadA,	   ccl.sigmaPadA,	  ccl.nAttachedClusters);
+  sz += ESTSIZE(CTF::BLCsigmaTimeA,	   ccl.sigmaTimeA,	  ccl.nAttachedClusters);
+  sz += ESTSIZE(CTF::BLCqPtA, 	           ccl.qPtA,		  ccl.nTracks);
+  sz += ESTSIZE(CTF::BLCrowA, 	           ccl.rowA,		  ccl.nTracks);
+  sz += ESTSIZE(CTF::BLCsliceA,	           ccl.sliceA, 	          ccl.nTracks);
+  sz += ESTSIZE(CTF::BLCtimeA,	           ccl.timeA,  	          ccl.nTracks);
+  sz += ESTSIZE(CTF::BLCpadA, 	           ccl.padA,		  ccl.nTracks);
+  sz += ESTSIZE(CTF::BLCqTotU,	           ccl.qTotU,  	          ccl.nUnattachedClusters);
+  sz += ESTSIZE(CTF::BLCqMaxU,	           ccl.qMaxU,  	          ccl.nUnattachedClusters);
+  sz += ESTSIZE(CTF::BLCflagsU,	           ccl.flagsU, 	          ccl.nUnattachedClusters);
+  sz += ESTSIZE(CTF::BLCpadDiffU,	   ccl.padDiffU,	  ccl.nUnattachedClusters);
+  sz += ESTSIZE(CTF::BLCtimeDiffU,	   ccl.timeDiffU,	  ccl.nUnattachedClusters);
+  sz += ESTSIZE(CTF::BLCsigmaPadU,	   ccl.sigmaPadU,	  ccl.nUnattachedClusters);
+  sz += ESTSIZE(CTF::BLCsigmaTimeU,	   ccl.sigmaTimeU,	  ccl.nUnattachedClusters);
+  sz += ESTSIZE(CTF::BLCnTrackClusters,    ccl.nTrackClusters,    ccl.nTracks);
+  sz += ESTSIZE(CTF::BLCnSliceRowClusters, ccl.nSliceRowClusters, ccl.nSliceRows);
+  // clang-format on
+
+  LOG(INFO) << "Estimated output size is " << sz << " bytes";
+  return sz;
+}

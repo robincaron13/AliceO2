@@ -107,3 +107,11 @@ o2_add_dpl_workflow(ccdbaccess
                   PUBLIC_LINK_LIBRARIES O2::AnalysisCore O2::CCDB O2::Framework O2::AnalysisDataModel
                   COMPONENT_NAME AnalysisTutorial)
 
+o2_add_dpl_workflow(custom-index
+                  SOURCES src/custom_index.cxx
+                  PUBLIC_LINK_LIBRARIES O2::Framework O2::AnalysisCore O2::AnalysisDataModel
+                  COMPONENT_NAME AnalysisTutorial)
+
+o2_add_dpl_workflow(weak-decay-iteration
+                  SOURCES src/weakDecayIteration.cxx
+                  COMPONENT_NAME AnalysisTutorial)

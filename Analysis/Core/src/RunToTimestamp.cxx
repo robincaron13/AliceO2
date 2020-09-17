@@ -14,13 +14,14 @@
 // Author: Nicolo' Jacazio on 2020-06-22
 
 #include "Analysis/RunToTimestamp.h"
+#include <FairLogger.h>
 
 ClassImp(RunToTimestamp);
 
-bool RunToTimestamp::insert(uint runNumber, long timestamp)
+bool RunToTimestamp::insert(unsigned int runNumber, long timestamp)
 {
-  std::pair<std::map<uint, long>::iterator, bool> check;
-  check = mMap.insert(std::pair<uint, long>(runNumber, timestamp));
+  std::pair<std::map<unsigned int, long>::iterator, bool> check;
+  check = mMap.insert(std::pair<unsigned int, long>(runNumber, timestamp));
   if (!check.second) {
     LOG(FATAL) << "Run number " << runNumber << " already existed with a timestamp of " << check.first->second;
     return false;
@@ -29,7 +30,7 @@ bool RunToTimestamp::insert(uint runNumber, long timestamp)
   return true;
 }
 
-bool RunToTimestamp::update(uint runNumber, long timestamp)
+bool RunToTimestamp::update(unsigned int runNumber, long timestamp)
 {
   if (!Has(runNumber)) {
     LOG(FATAL) << "Run to Timestamp converter does not have run " << runNumber << ", cannot update converter";
@@ -39,7 +40,7 @@ bool RunToTimestamp::update(uint runNumber, long timestamp)
   return true;
 }
 
-long RunToTimestamp::getTimestamp(uint runNumber) const
+long RunToTimestamp::getTimestamp(unsigned int runNumber) const
 {
   if (!Has(runNumber)) {
     LOG(ERROR) << "Run to Timestamp converter does not have run " << runNumber;
@@ -51,7 +52,9 @@ long RunToTimestamp::getTimestamp(uint runNumber) const
 void RunToTimestamp::print() const
 {
   LOG(INFO) << "Printing run number -> timestamp conversion";
+  int counter = 0;
   for (auto e : mMap) {
-    LOG(INFO) << "Run number: " << e.first << " timestamp: " << e.second << "\n";
+    LOG(INFO) << "Entry #" << counter++ << " has run number: " << e.first << " and timestamp: " << e.second;
   }
+  LOG(INFO) << "Total number of runs in converter: " << mMap.size();
 }

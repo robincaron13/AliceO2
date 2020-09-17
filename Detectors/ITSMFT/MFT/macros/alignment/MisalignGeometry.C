@@ -9,10 +9,10 @@
 void MisalignMFTGeometry(const std::string inputGeom = ""){
     
     o2::base::GeometryManager::loadGeometry(inputGeom);
-    
+
     auto gm = o2::mft::GeometryTGeo::Instance(); // geometry manager for mapping
 
-    
+
     LOG(INFO) << "MisalignMFTGeometry ";
 
     o2::mft::test::MisalignGeometry();

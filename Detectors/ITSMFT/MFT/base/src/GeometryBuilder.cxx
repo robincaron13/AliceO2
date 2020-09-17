@@ -29,6 +29,7 @@
 #include "FairLogger.h"
 
 using namespace o2::mft;
+using namespace o2::detectors;
 
 ClassImp(o2::mft::GeometryBuilder);
 

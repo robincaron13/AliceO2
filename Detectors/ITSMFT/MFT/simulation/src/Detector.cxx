@@ -20,6 +20,9 @@
 
 #include "MFTSimulation/Detector.h"
 
+#include "MFTSimulation/GeometryMisAligner.h"
+#include "MFTSimulation/GeometryTest.h"
+
 #include "SimulationDataFormat/Stack.h"
 #include "Field/MagneticField.h"
 
@@ -31,6 +34,10 @@
 #include "FairRootManager.h"
 #include "FairVolume.h"
 #include "FairRootManager.h"
+
+#include "FairAlignmentHandler.h"
+#include "FairRunAna.h"
+#include "FairMCApplication.h"
 
 using o2::itsmft::Hit;
 using namespace o2::mft;
@@ -474,7 +481,6 @@ void Detector::createGeometry()
 //_____________________________________________________________________________
 void Detector::ConstructGeometry()
 {
-
   createMaterials();
   createGeometry();
 }
@@ -493,6 +499,7 @@ void Detector::defineSensitiveVolumes()
   }
 }
 
+//_____________________________________________________________________________
 void Detector::addAlignableVolumes() const
 {
   //
@@ -527,9 +534,16 @@ void Detector::addAlignableVolumes() const
     addAlignableVolumesHalf(hf, path, lastUID);
   }
 
-  return;
+  //gGeoManager->Export("o2sim_geometry_ideal.root");
+
+  MisalignGeometryTest();
+
+  //gGeoManager->Export("o2sim_geometry_misaligned.root");
+
+  //return;
 }
 
+//_____________________________________________________________________________
 void Detector::addAlignableVolumesHalf(int hf, TString& parent, Int_t& lastUID) const
 {
   //
@@ -538,7 +552,7 @@ void Detector::addAlignableVolumesHalf(int hf, TString& parent, Int_t& lastUID) 
 
   //TString wrpV = mWrapperLayerId[lr] != -1 ? Form("%s%d_1", GeometryTGeo::getITSWrapVolPattern(), mWrapperLayerId[lr]) : "";
   TString path = Form("%s/%s_%d_%d", parent.Data(), GeometryTGeo::getMFTHalfPattern(), hf, hf);
-  TString sname = GeometryTGeo::composeSymNameHalf(hf);
+  TString sname = mGeometryTGeo->composeSymNameHalf(hf);
 
   LOG(DEBUG) << "Add " << sname << " <-> " << path;
 
@@ -557,17 +571,19 @@ void Detector::addAlignableVolumesHalf(int hf, TString& parent, Int_t& lastUID) 
     addAlignableVolumesDisk(hf, dk, path, lastUID);
   }
 
-  return;
+  //return;
 }
 
-void Detector::addAlignableVolumesDisk(Int_t hf, Int_t dk, TString& parent, Int_t& lastUID) const
+//_____________________________________________________________________________
+void Detector::addAlignableVolumesDisk(Int_t hf, Int_t dk,
+                                       TString& parent, Int_t& lastUID) const
 {
   //
   // Add alignable volumes for a Disk and its daughters
   //
 
   TString path = Form("%s/%s_%d_%d_%d", parent.Data(), GeometryTGeo::getMFTDiskPattern(), hf, dk, dk);
-  TString sname = GeometryTGeo::composeSymNameDisk(hf, dk);
+  TString sname = mGeometryTGeo->composeSymNameDisk(hf, dk);
 
   LOG(DEBUG) << "Add " << sname << " <-> " << path;
 
@@ -588,9 +604,10 @@ void Detector::addAlignableVolumesDisk(Int_t hf, Int_t dk, TString& parent, Int_
     addAlignableVolumesLadder(hf, dk, lr, path, lastUID);
   }
 
-  return;
+  //return;
 }
 
+//_____________________________________________________________________________
 void Detector::addAlignableVolumesLadder(Int_t hf, Int_t dk, Int_t lr,
                                          TString& parent, Int_t& lastUID) const
 {
@@ -600,7 +617,7 @@ void Detector::addAlignableVolumesLadder(Int_t hf, Int_t dk, Int_t lr,
 
   TString path = parent;
   path = Form("%s/%s_%d_%d_%d_%d", parent.Data(), GeometryTGeo::getMFTLadderPattern(), hf, dk, lr, lr);
-  TString sname = GeometryTGeo::composeSymNameLadder(hf, dk, lr);
+  TString sname = mGeometryTGeo->composeSymNameLadder(hf, dk, lr);
 
   LOG(DEBUG) << "Add " << sname << " <-> " << path;
 
@@ -608,20 +625,16 @@ void Detector::addAlignableVolumesLadder(Int_t hf, Int_t dk, Int_t lr,
     LOG(FATAL) << "Unable to set alignable entry ! " << sname << " : " << path;
   }
 
-  //LOG(INFO) << sname << "  addAlignableVolumesLadder "<< path<< "   -- hf " << hf << " dk "<<dk<<"  lr "<<lr;
-
   Int_t nSensors = mGeometryTGeo->getNumberOfSensorsPerLadder(hf, dk, lr);
-  //Int_t nSensors = 2;
-
-  //LOG(INFO) << nSensors << "nSensors, hf "<< hf << " dk "<<dk<<"  lr "<<lr;
 
   for (Int_t ms = 0; ms < nSensors; ms++) {
     addAlignableVolumesChip(hf, dk, lr, ms, path, lastUID);
   }
 
-  return;
+  //return;
 }
 
+//_____________________________________________________________________________
 void Detector::addAlignableVolumesChip(Int_t hf, Int_t dk, Int_t lr, Int_t ms,
                                        TString& parent, Int_t& lastUID) const
 {
@@ -630,13 +643,11 @@ void Detector::addAlignableVolumesChip(Int_t hf, Int_t dk, Int_t lr, Int_t ms,
   //
 
   TString path = Form("%s/%s_%d_%d_%d_%d", parent.Data(), GeometryTGeo::getMFTChipPattern(), hf, dk, lr, ms);
-  TString sname = GeometryTGeo::composeSymNameChip(hf, dk, lr, ms);
-
-  //LOG(INFO) << sname << "  addAlignableVolumesChip "<< path;
+  TString sname = mGeometryTGeo->composeSymNameChip(hf, dk, lr, ms);
 
   //Int_t modUID = mGeometry->getSensorID(lastUID++);
 
-  LOG(INFO) << sname << " CHIP: lastUID " << lastUID;
+  //LOG(INFO) << sname << " CHIP: lastUID " << lastUID;
 
   LOG(DEBUG) << "Add " << sname << " <-> " << path;
 
@@ -648,7 +659,40 @@ void Detector::addAlignableVolumesChip(Int_t hf, Int_t dk, Int_t lr, Int_t ms,
     LOG(FATAL) << "Unable to set alignable entry ! " << sname << " : " << path;
   }
 
-  return;
+  //return;
+}
+
+//_____________________________________________________________________________
+void Detector::MisalignGeometryTest() const
+{
+  //
+  // Test for misalign the defined alignable MFT modules
+    
+    
+  // The misaligner
+  o2::mft::GeometryMisAligner aGMA;
+
+  aGMA.SetModuleCartMisAlig(0.8, 0., 1.6, 0., 0.8, 0.); // Module translated on X, Y, Z axis
+  aGMA.SetModuleAngMisAlig(0.3, 0., 0.4, 0., 0.3, 0.0);   // Module rotated on X, Y, Z axis
+
+  aGMA.SetCartMisAlig(0.2, 0., 0.3, 0., 0.4, 0.); // Detection Element translated on X, Y axis
+  aGMA.SetAngMisAlig(0.4, 0.1);                // Detection Element rotated on Z axis
+
+  aGMA.MisAlign(true);
+    
+  gGeoManager->RefreshPhysicalNodes();
+
+  LOG(INFO) << "Misaligned MFT Geometry ";
+
+  gGeoManager->Export("o2sim_geometry_misaligned.root");
+
+  //gGeoManager->MakePhysicalNode();
+  //gGeoManager->CheckGeometry();
+  //gGeoManager->PrintOverlaps();
+  //gGeoManager->RefreshPhysicalNodes(true);
+  //gGeoManager->ClearPhysicalNodes(true);
+    
+  //return true;
 }
 
 //_____________________________________________________________________________
