@@ -14,8 +14,18 @@
 #pragma link off all classes;
 #pragma link off all functions;
 
+#pragma link C++ namespace o2;
+#pragma link C++ namespace o2::mft;
+//#pragma link C++ namespace o2::mft::test;
+
 #pragma link C++ class o2::mft::Detector + ;
 #pragma link C++ class o2::base::DetImpl < o2::mft::Detector> + ;
 #pragma link C++ class o2::mft::DigitizerTask + ;
+#pragma link C++ class o2::mft::GeometryMisAligner + ;
+//#pragma link C++ class o2::mft::test::Dummy;
+
+#pragma link C++ function o2::mft::test::addAlignableVolumes;
+#pragma link C++ function o2::mft::test::createRegularGeometry;
+#pragma link C++ function o2::mft::test::MisalignGeometry;
 
 #endif

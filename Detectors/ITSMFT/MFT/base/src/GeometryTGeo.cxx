@@ -225,8 +225,7 @@ Int_t GeometryTGeo::extractNumberOfSensorsPerLadder(Int_t half, Int_t disk, Int_
   // Loop on all ladder nodes, count sensor volumes by checking names
   Int_t nNodes = volLadder->GetNodes()->GetEntries();
   for (int j = 0; j < nNodes; j++) {
-    // LOG(INFO) << "GeometryTGeo::extractNumberOfSensorsPerLadder " << half << " " << disk << " " << ladder << " " <<
-    // volLadder->GetNodes()->At(j)->GetName();
+    //LOG(INFO) << "GeometryTGeo::extractNumberOfSensorsPerLadder " << half << " " << disk << " " << ladder << " " << volLadder->GetNodes()->At(j)->GetName();
     if (strstr(volLadder->GetNodes()->At(j)->GetName(), getMFTChipPattern())) {
       numberOfSensors++;
     }
@@ -568,3 +567,27 @@ Int_t GeometryTGeo::getSensorIndex(Int_t halfID, Int_t diskID, Int_t ladderID, I
 
 //__________________________________________________________________________
 Int_t GeometryTGeo::getLayer(Int_t index) const { return mSensorIndexToLayer[index]; }
+
+//__________________________________________________________________________
+const char* GeometryTGeo::composeSymNameHalf(int hf)
+{
+  return Form("%s_0/%s_%d_%d", composeSymNameMFT(), getMFTHalfPattern(), hf, hf);
+}
+
+//__________________________________________________________________________
+const char* GeometryTGeo::composeSymNameDisk(int hf, int dk)
+{
+  return Form("%s/%s_%d_%d_%d", composeSymNameHalf(hf), getMFTDiskPattern(), hf, dk, dk);
+}
+
+//__________________________________________________________________________
+const char* GeometryTGeo::composeSymNameLadder(int hf, int dk, int lr)
+{
+  return Form("%s/%s_%d_%d_%d_%d", composeSymNameDisk(hf, dk), getMFTLadderPattern(), hf, dk, lr, lr);
+}
+
+//__________________________________________________________________________
+const char* GeometryTGeo::composeSymNameChip(int hf, int dk, int lr, int chip)
+{
+  return Form("%s/%s_%d_%d_%d_%d", composeSymNameLadder(hf, dk, lr), getMFTChipPattern(), hf, dk, lr, chip);
+}
