@@ -13,6 +13,7 @@ o2_add_library(MFTSimulation
 			src/DigitizerTask.cxx
 			src/GeometryMisAligner.cxx
 			src/GeometryTest.cxx
+			src/ModuleTransform.cxx
                PUBLIC_LINK_LIBRARIES O2::MFTBase ROOT::Physics)
 
 o2_target_root_dictionary(MFTSimulation
@@ -20,6 +21,7 @@ o2_target_root_dictionary(MFTSimulation
                                   	include/MFTSimulation/DigitizerTask.h
 					include/MFTSimulation/GeometryMisAligner.h
 					include/MFTSimulation/GeometryTest.h
+					include/MFTSimulation/ModuleTransform.h
 					)
 
 

@@ -10,7 +10,7 @@
 
 /// \file GeometryMisAligner.cxx
 /// \brief This macro performs the misalignment on an existing MFT geometry
-/// \author robin.caron@cern.ch
+/// \author robin.caron@cern.ch (based on MUON/MCH AliRoot macros)
 /// \date 01/07/2020
 
 /// This macro performs the misalignment on an existing MFT geometry
@@ -57,6 +57,8 @@
 #include "DetectorsCommonDataFormats/DetID.h"
 #include "DetectorsCommonDataFormats/AlignParam.h"
 
+#include "MFTSimulation/ModuleTransform.h"
+
 //#include "MFTGeometryTransformer.h"
 
 //#include "MFTGeometryModuleTransformer.h"
@@ -98,6 +100,8 @@ GeometryMisAligner::GeometryMisAligner(Double_t cartXMisAligM, Double_t cartXMis
     for (Int_t j = 0; j < 2; j++) {
       fDetElemMisAlig[i][j] = 0.0;
       fModuleMisAlig[i][j] = 0.0;
+      fSensorMisAlig[i][j] = 0.0;
+      fHalfMisAlig[i][j] = 0.0;
     }
   }
   fDetElemMisAlig[0][0] = cartXMisAligM;
@@ -121,6 +125,8 @@ GeometryMisAligner::GeometryMisAligner(Double_t cartMisAligM, Double_t cartMisAl
     for (Int_t j = 0; j < 2; j++) {
       fDetElemMisAlig[i][j] = 0.0;
       fModuleMisAlig[i][j] = 0.0;
+      fSensorMisAlig[i][j] = 0.0;
+      fHalfMisAlig[i][j] = 0.0;
     }
   }
   fDetElemMisAlig[0][0] = cartMisAligM;
@@ -144,6 +150,8 @@ GeometryMisAligner::GeometryMisAligner(Double_t cartMisAlig, Double_t angMisAlig
     for (Int_t j = 0; j < 2; j++) {
       fDetElemMisAlig[i][j] = 0.0;
       fModuleMisAlig[i][j] = 0.0;
+      fSensorMisAlig[i][j] = 0.0;
+      fHalfMisAlig[i][j] = 0.0;
     }
   }
   fDetElemMisAlig[0][1] = cartMisAlig;
@@ -164,6 +172,8 @@ GeometryMisAligner::GeometryMisAligner()
     for (Int_t j = 0; j < 2; j++) {
       fDetElemMisAlig[i][j] = 0.0;
       fModuleMisAlig[i][j] = 0.0;
+      fSensorMisAlig[i][j] = 0.0;
+      fHalfMisAlig[i][j] = 0.0;
     }
   }
 }
@@ -244,6 +254,43 @@ void GeometryMisAligner::GetGausMisAlign(double cartMisAlig[3], double angMisAli
   angMisAlig[1] = gRandom->Gaus(lParMisAlig[4][0], lParMisAlig[4][1]); //, 3. * lParMisAlig[4][1]);
   angMisAlig[2] = gRandom->Gaus(lParMisAlig[5][0], lParMisAlig[5][1]); //, 3. * lParMisAlig[5][1]); // degrees
 }
+
+//_________________________________________________________________________
+TGeoCombiTrans GeometryMisAligner::MisAlignSensor() const
+{
+  /// Misalign given transformation and return the misaligned transformation.
+  /// Use misalignment parameters for sensor on the ladder.
+  /// Note that applied misalignments are small deltas with respect to the detection
+  /// element own ideal local reference frame. Thus deltaTransf represents
+  /// the transformation to go from the misaligned d.e. local coordinates to the
+  /// ideal d.e. local coordinates.
+  /// Also note that this -is not- what is in the ALICE alignment framework known
+  /// as local nor global (see GeometryMisAligner::MisAlign)
+
+  Double_t cartMisAlig[3] = {0, 0, 0};
+  Double_t angMisAlig[3] = {0, 0, 0};
+
+  if (fUseUni) {
+    GetUniMisAlign(cartMisAlig, angMisAlig, fSensorMisAlig);
+  } else {
+    if (!fUseGaus) {
+      LOG(INFO) << "Neither uniform nor gausian distribution is set! Will use gausian...";
+    }
+    GetGausMisAlign(cartMisAlig, angMisAlig, fSensorMisAlig);
+  }
+
+  TGeoTranslation deltaTrans(cartMisAlig[0], cartMisAlig[1], cartMisAlig[2]);
+  TGeoRotation deltaRot;
+  deltaRot.RotateX(angMisAlig[0]);
+  deltaRot.RotateY(angMisAlig[1]);
+  deltaRot.RotateZ(angMisAlig[2]);
+
+  TGeoCombiTrans deltaTransf(deltaTrans, deltaRot);
+  //TGeoHMatrix newTransfMat = transform * deltaTransf;
+
+  return TGeoCombiTrans(deltaTransf);
+}
+
 //_________________________________________________________________________
 TGeoCombiTrans GeometryMisAligner::MisAlignDetElem() const
 {
@@ -279,6 +326,43 @@ TGeoCombiTrans GeometryMisAligner::MisAlignDetElem() const
 
   //LOG(INFO) << "Translation Module by (" << cartMisAlig[0] << "," << cartMisAlig[1] << "," << cartMisAlig[2] << ") on (X,Y,Z) axis.";
   //LOG(INFO) << "Rotated Module by (" << angMisAlig[0] << "," << angMisAlig[1] << "," << angMisAlig[2] << ") about (X,Y,Z) axis.";
+
+  return TGeoCombiTrans(deltaTransf);
+}
+
+//_________________________________________________________________________
+TGeoCombiTrans
+  GeometryMisAligner::MisAlignHalf() const
+{
+  /// Misalign given transformation and return the misaligned transformation.
+  /// Use misalignment parameters for half-MFT.
+  /// Note that applied misalignments are small deltas with respect to the module
+  /// own ideal local reference frame. Thus deltaTransf represents
+  /// the transformation to go from the misaligned module local coordinates to the
+  /// ideal module local coordinates.
+  /// Also note that this -is not- what is in the ALICE alignment framework known
+  /// as local nor global (see GeometryMisAligner::MisAlign)
+
+  Double_t cartMisAlig[3] = {0, 0, 0};
+  Double_t angMisAlig[3] = {0, 0, 0};
+
+  if (fUseUni) {
+    GetUniMisAlign(cartMisAlig, angMisAlig, fHalfMisAlig);
+  } else {
+    if (!fUseGaus) {
+      LOG(INFO) << "Neither uniform nor gausian distribution is set! Will use gausian...";
+    }
+    GetGausMisAlign(cartMisAlig, angMisAlig, fHalfMisAlig);
+  }
+
+  TGeoTranslation deltaTrans(cartMisAlig[0], cartMisAlig[1], cartMisAlig[2]);
+  TGeoRotation deltaRot;
+  deltaRot.RotateX(angMisAlig[0]);
+  deltaRot.RotateY(angMisAlig[1]);
+  deltaRot.RotateZ(angMisAlig[2]);
+
+  TGeoCombiTrans deltaTransf(deltaTrans, deltaRot);
+  //TGeoHMatrix newTransfMat = transform * deltaTransf;
 
   return TGeoCombiTrans(deltaTransf);
 }
@@ -373,8 +457,12 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
   std::vector<o2::detectors::AlignParam> lAPvecModule;  // Storage of all AlignParam for each Module
   std::vector<o2::detectors::AlignParam> lAPvecDetElem; // Storage of all AlignParam for each DetElement
 
+  // The function to get misalignment transformations of DE from surveyed positions
+  o2::mft::ModuleTransform mTransform;
+
   Int_t nAlignID = 0;
-  static TGeoHMatrix matIGTransf;
+  //static TGeoHMatrix matIGTransf;
+  double lPsi, lTheta, lPhi = 0.;
 
   Int_t nHalf = mGeometryTGeo->getNumberOfHalfs();
 
@@ -382,18 +470,39 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
 
     Int_t nDisks = mGeometryTGeo->getNumberOfDisksPerHalf(hf);
 
+    // New module transformation
+    TGeoCombiTrans localDeltaTransform = MisAlignHalf();
+    // localDeltaTransform.Print();
+
+    TString sname = mGeometryTGeo->composeSymNameHalf(hf);
+
+    lAP.setSymName(sname);
+    lAP.setAlignableID(nAlignID++);
+
+    lAP.setLocalParams(localDeltaTransform);
+
+    if (!matrixToAngles(localDeltaTransform.GetRotationMatrix(), lPsi, lTheta, lPhi)) {
+      LOG(ERROR) << "Problem extracting angles! from Half";
+    }
+    LOG(DEBUG) << "** LocalDeltaTransform Half: " << fmt::format("{} : {} | X: {:+f} Y: {:+f} Z: {:+f} | pitch: {:+f} roll: {:+f} yaw: {:+f}\n", lAP.getSymName(), lAP.getAlignableID(), localDeltaTransform.GetTranslation()[0], localDeltaTransform.GetTranslation()[1], localDeltaTransform.GetTranslation()[2], localDeltaTransform.GetRotationMatrix()[0], localDeltaTransform.GetRotationMatrix()[1], localDeltaTransform.GetRotationMatrix()[2]);
+
+    lAP.setLocalParams(localDeltaTransform);
+    // Apply misalignment of the half to the ideal geometry
+    lAP.applyToGeometry();
+
     for (Int_t dk = 0; dk < nDisks; dk++) {
 
       // New module transformation
-      TGeoCombiTrans localDeltaTransform = MisAlignModule();
+      //TGeoCombiTrans localDeltaTransform = MisAlignModule();
+      localDeltaTransform = MisAlignModule();
 
       // localDeltaTransform.Print();
-      TString sname = mGeometryTGeo->composeSymNameDisk(hf, dk);
-   
+      //TString sname = mGeometryTGeo->composeSymNameDisk(hf, dk);
+      sname = mGeometryTGeo->composeSymNameDisk(hf, dk);
+
       lAP.setSymName(sname);
       lAP.setAlignableID(nAlignID++);
 
-      double lPsi, lTheta, lPhi = 0.;
       if (!matrixToAngles(localDeltaTransform.GetRotationMatrix(), lPsi, lTheta, lPhi)) {
         LOG(ERROR) << "Problem extracting angles!";
       }
@@ -427,12 +536,13 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
 
         sname = mGeometryTGeo->composeSymNameLadder(hf, dk, lr);
 
+        Int_t nSensorsPerLadder = mGeometryTGeo->getNumberOfSensorsPerLadder(hf, dk, lr);
         TString path = "/cave_1/barrel_1/" + sname;
 
         lAP.setSymName(sname);
 
         lAP.setAlignableID(nAlignID++);
-       
+
         //        if (!matrixToAngles(localDeltaTransform.GetRotationMatrix(), lPsi, lTheta, lPhi)) {
         //          LOG(ERROR) << "Problem extracting angles!";
         //        }
@@ -442,7 +552,7 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
         //        if (!lAP.setLocalParams(localDeltaTransform)) {
         //          LOG(ERROR) << "  Could not set local params for " << sname;
         //        }
-        
+
         // Set the local transformations
         lAP.setLocalParams(localDeltaTransform);
 
@@ -457,20 +567,36 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
 
         // Store AlignParam (misalignment parameters)
         lAPvecDetElem.push_back(lAP);
+
+        for (Int_t sr = 0; sr < nSensorsPerLadder; sr++) {
+
+          localDeltaTransform = MisAlignSensor();
+
+          sname = mGeometryTGeo->composeSymNameChip(hf, dk, lr, sr);
+
+          lAP.setSymName(sname);
+          lAP.setAlignableID(nAlignID++);
+
+          lAP.setLocalParams(localDeltaTransform);
+          lAP.applyToGeometry();
+
+          Double_t parErr[6] = {0.002, 0.001, 0.003, 0, 0, 0};
+          Int_t resultTransformFcn = mTransform.GetModuleMeanTransform(localDeltaTransform, parErr);
+          LOG(INFO) << " ---->  result: ModuleTransform " << resultTransformFcn;
+        }
       }
-        
     }
   }
 
   lAPvec.push_back(lAPvecModule);
   lAPvec.push_back(lAPvecDetElem);
 
-//  for (o2::detectors::AlignParam MDalignparam : lAPvecModule) {
-//    MDalignparam.Print();
-//    for (o2::detectors::AlignParam DEalignparam : lAPvecDetElem) {
-//      DEalignparam.Print();
-//    }
-//  }
+  //  for (o2::detectors::AlignParam MDalignparam : lAPvecModule) {
+  //    MDalignparam.Print();
+  //    for (o2::detectors::AlignParam DEalignparam : lAPvecDetElem) {
+  //      DEalignparam.Print();
+  //    }
+  //  }
 
   // return newGeometryTransformer;
 }
@@ -532,3 +658,4 @@ void GeometryMisAligner::SetAlignmentResolution(const TClonesArray* misAlignArra
     
     */
 }
+

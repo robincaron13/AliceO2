@@ -39,7 +39,8 @@ struct Cluster : public o2::BaseCluster<float> {
 
   void setUsed(Bool_t bval) { isUsed = bval; }
   const Bool_t getUsed() { return isUsed; }
-
+  Cluster(const Int_t layerIndex, const Cluster& other);
+    
   Float_t phiCoordinate;
   Float_t rCoordinate;
   Int_t clusterId;

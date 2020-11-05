@@ -20,6 +20,9 @@
 
 #include "MFTSimulation/GeometryMisAligner.h"
 #include "MFTSimulation/GeometryTest.h"
+#include "MFTSimulation/ModuleTransform.h"
+
+#include "MFTSimulation/ModuleTransform.h"
 
 #include "MFTSimulation/Detector.h"
 
@@ -695,22 +698,29 @@ void Detector::addAlignableVolumesChip(Int_t hf, Int_t dk, Int_t lr, Int_t ms,
 void Detector::MisalignGeometryTest() const
 {
   //
-  // Test for misalign the defined alignable MFT modules
+  // Test to misalign the MFT geometry
 
   // The misaligner
   o2::mft::GeometryMisAligner aGMA;
 
-  aGMA.SetModuleCartMisAlig(0.00, 0.000, 0.00, 0.000, 0., 0.000); // Module translated on X, Y, Z axis
-  aGMA.SetModuleAngMisAlig(0.00, 0.00, 0.00, 0.00, 0.00, 0.004);   // Module rotated on X, Y, Z axis
+  aGMA.SetHalfCartMisAlig(0.00, 0.000, 0.00, 0.000, 0., 0.000); // half-MFT translated on X, Y, Z axis
+  aGMA.SetHalfAngMisAlig(0.00, 0.00, 0.00, 0.00, 0.00, 0.000);  // half-MFT  rotated on X, Y, Z axis
 
-  aGMA.SetCartMisAlig(0.00, 0.00, 0.00, 0.000, 0., 0.000); // Detection Element translated on X, Y, Z axis
-  aGMA.SetAngMisAlig(0.00, 0.00, 0.0, 0.000, 0.0, 0.004);    // Detection Element rotated on Z, X, Y  axis  (!)
+  aGMA.SetModuleCartMisAlig(0.00, 0.000, 0.00, 0.000, 0., 0.000); // Modules (half-disks) translated on X, Y, Z axis
+  aGMA.SetModuleAngMisAlig(0.00, 0.00, 0.00, 0.00, 0.00, 0.000);  // Modules (half-disks) rotated on X, Y, Z axis
+
+  aGMA.SetCartMisAlig(0.00, 0.004, 0.00, 0.003, 0., 0.005); // Detection Elements (ladders) translated on X, Y, Z axis
+  aGMA.SetAngMisAlig(0.00, 0.00, 0.0, 0.000, 0.0, 0.005);   // Detection Elements (ladders) rotated on Z, X, Y  axis  (!)
+
+  aGMA.SetSensorCartMisAlig(0.00, 0.000, 0.00, 0.000, 0., 0.000); // Sensors (chips) translated on X, Y, Z axis
+  aGMA.SetSensorAngMisAlig(0.00, 0.00, 0.0, 0.000, 0.0, 0.000);   // Sensors (chips) rotated on Z, X, Y  axis  (!)
 
   aGMA.MisAlign(true);
 
   gGeoManager->RefreshPhysicalNodes();
 
   gGeoManager->Export("o2sim_geometry_misaligned.root");
+  //gGeoManager->Export("o2sim_geometry_ideal.root");
 
   gGeoManager->RefreshPhysicalNodes(true);
 
@@ -739,3 +749,4 @@ void Detector::Reset()
     mHits->clear();
   }
 }
+

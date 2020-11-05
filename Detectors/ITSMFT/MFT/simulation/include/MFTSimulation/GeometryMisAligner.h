@@ -8,42 +8,12 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file GeometryMisAligner.cxx
+/// \file GeometryMisAligner.h
 /// \brief This macro performs the misalignment on an existing MFT geometry
 /// \author robin.caron@cern.ch
 /// \date 01/07/2020
+///
 
-/// This macro performs the misalignment on an existing MFT geometry
-/// based on the standard definition of the detector elements in
-/// the MFTGeometryTransformer class.
-///
-/// It uses GeometryMisAligner :
-/// - Creates a new MFTGeometryTransformer and GeometryMisAligner
-/// - Loads the geometry from the specified geometry file (default is geometry.root)
-/// - Creates a second MFTGeometryTransformer by misaligning the existing
-///   one using GeometryMisAligner::MisAlign
-/// - User has to specify the magnitude of the alignments, in the Cartesian
-///   co-ordiantes (which are used to apply translation misalignments) and in the
-///   spherical co-ordinates (which are used to apply angular displacements)
-/// - User can also set misalignment ranges by hand using the methods :
-///   SetMaxCartMisAlig, SetMaxAngMisAlig, SetXYAngMisAligFactor
-///   (last method takes account of the fact that the misalingment is greatest in
-///   the XY plane, since the detection elements are fixed to a support structure
-///   in this plane. Misalignments in the XZ and YZ plane will be very small
-///   compared to those in the XY plane, which are small already - of the order
-///   of microns)
-/// - Default behavior generates a "residual" misalignment using gaussian
-///   distributions. Uniform distributions can still be used, see
-///   GeometryMisAligner.
-/// - User can also generate module misalignments using SetModuleCartMisAlig
-///   and SetModuleAngMisAlig
-///
-/// Note: If the detection elements are allowed to be misaligned in all
-/// directions, this has consequences for the alignment algorithm, which
-/// needs to know the number of free parameters. Eric only allowed 3 :
-/// x,y,theta_xy, but in principle z and the other two angles are alignable
-/// as well.
-///
 #ifndef ALICEO2_MFT_GEOMETRYMISALIGNER_H
 #define ALICEO2_MFT_GEOMETRYMISALIGNER_H
 
@@ -113,6 +83,53 @@ class GeometryMisAligner : public TObject
   void MisAlign(bool verbose = false);
 
   /// Set cartesian displacement parameters different along x, y
+  void SetSensorCartMisAlig(Double_t xmean, Double_t xwidth, Double_t ymean, Double_t ywidth, Double_t zmean = 0., Double_t zwidth = 0.)
+  {
+    fSensorMisAlig[0][0] = xmean;
+    fSensorMisAlig[0][1] = xwidth;
+    fSensorMisAlig[1][0] = ymean;
+    fSensorMisAlig[1][1] = ywidth;
+    fSensorMisAlig[2][0] = zmean;
+    fSensorMisAlig[2][1] = zwidth;
+  }
+
+  /// Set cartesian displacement parameters, the same along x, y
+  void SetSensorCartMisAlig(Double_t mean, Double_t width)
+  {
+    fSensorMisAlig[0][0] = mean;
+    fSensorMisAlig[0][1] = width;
+    fSensorMisAlig[1][0] = mean;
+    fSensorMisAlig[1][1] = width;
+  }
+
+  /// Set angular displacement
+  void SetSensorAngMisAlig(Double_t zmean, Double_t zwidth, Double_t xmean = 0., Double_t xwidth = 0., Double_t ymean = 0., Double_t ywidth = 0.)
+  {
+    fSensorMisAlig[3][0] = xmean;
+    fSensorMisAlig[3][1] = xwidth;
+    fSensorMisAlig[4][0] = ymean;
+    fSensorMisAlig[4][1] = ywidth;
+    fSensorMisAlig[5][0] = zmean;
+    fSensorMisAlig[5][1] = zwidth;
+  }
+
+  /// Set cartesian displacement (Kept for backward compatibility)
+  void SetMaxSensorCartMisAlig(Double_t width)
+  {
+    fSensorMisAlig[0][0] = 0.0;
+    fSensorMisAlig[0][1] = width;
+    fSensorMisAlig[1][0] = 0.0;
+    fSensorMisAlig[1][1] = width;
+  }
+
+  /// Set angular displacement (Kept for backward compatibility)
+  void SetMaxSensorAngMisAlig(Double_t width)
+  {
+    fSensorMisAlig[5][0] = 0.0;
+    fSensorMisAlig[5][1] = width;
+  }
+
+  /// Set cartesian displacement parameters different along x, y
   void SetCartMisAlig(Double_t xmean, Double_t xwidth, Double_t ymean, Double_t ywidth, Double_t zmean = 0., Double_t zwidth = 0.)
   {
     fDetElemMisAlig[0][0] = xmean;
@@ -178,6 +195,28 @@ class GeometryMisAligner : public TObject
   }
 
   /// Set module cartesian displacement parameters
+  void SetHalfCartMisAlig(Double_t xmean, Double_t xwidth, Double_t ymean, Double_t ywidth, Double_t zmean, Double_t zwidth)
+  {
+    fHalfMisAlig[0][0] = xmean;
+    fHalfMisAlig[0][1] = xwidth;
+    fHalfMisAlig[1][0] = ymean;
+    fHalfMisAlig[1][1] = ywidth;
+    fHalfMisAlig[2][0] = zmean;
+    fHalfMisAlig[2][1] = zwidth;
+  }
+
+  /// Set module cartesian displacement parameters
+  void SetHalfAngMisAlig(Double_t xmean, Double_t xwidth, Double_t ymean, Double_t ywidth, Double_t zmean, Double_t zwidth)
+  {
+    fHalfMisAlig[3][0] = xmean;
+    fHalfMisAlig[3][1] = xwidth;
+    fHalfMisAlig[4][0] = ymean;
+    fHalfMisAlig[4][1] = ywidth;
+    fHalfMisAlig[5][0] = zmean;
+    fHalfMisAlig[5][1] = zwidth;
+  }
+
+  /// Set module cartesian displacement parameters
   void SetModuleCartMisAlig(Double_t xmean, Double_t xwidth, Double_t ymean, Double_t ywidth, Double_t zmean, Double_t zwidth)
   {
     fModuleMisAlig[0][0] = xmean;
@@ -209,14 +248,18 @@ class GeometryMisAligner : public TObject
   //TGeoCombiTrans MisAlignModule(const TGeoCombiTrans& transform) const;
   TGeoCombiTrans MisAlignDetElem() const;
   TGeoCombiTrans MisAlignModule() const;
+  TGeoCombiTrans MisAlignSensor() const;
+  TGeoCombiTrans MisAlignHalf() const;
 
   void GetUniMisAlign(Double_t cartMisAlig[3], Double_t angMisAlig[3], const Double_t lParMisAlig[6][2]) const;
   void GetGausMisAlign(Double_t cartMisAlig[3], Double_t angMisAlig[3], const Double_t lParMisAlig[6][2]) const;
 
   Bool_t fUseUni;                 ///< use uniform distribution for misaligmnets
   Bool_t fUseGaus;                ///< use gaussian distribution for misaligmnets
+  Double_t fSensorMisAlig[6][2];  ///< Mean and width of the displacements of the detection elements along x,y,z (translations) and about x,y,z (rotations)
   Double_t fDetElemMisAlig[6][2]; ///< Mean and width of the displacements of the detection elements along x,y,z (translations) and about x,y,z (rotations)
   Double_t fModuleMisAlig[6][2];  ///< Mean and width of the displacements of the modules along x,y,z (translations) and about x,y,z (rotations)
+  Double_t fHalfMisAlig[6][2];    ///< Mean and width of the displacements of the modules along x,y,z (translations) and about x,y,z (rotations)
 
   Double_t fXYAngMisAligFactor; ///< factor (<1) to apply to angular misalignment range since range of motion is restricted out of the xy plane
   Double_t fZCartMisAligFactor; ///< factor (<1) to apply to cartetian misalignment range since range of motion is restricted in z direction
@@ -228,3 +271,4 @@ class GeometryMisAligner : public TObject
 } // namespace o2
 
 #endif //ALICEO2_MFT_GEOMETRYMISALIGNER_H
+

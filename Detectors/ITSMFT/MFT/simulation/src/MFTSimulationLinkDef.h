@@ -23,6 +23,7 @@
 #pragma link C++ class o2::mft::DigitizerTask + ;
 #pragma link C++ class o2::mft::GeometryMisAligner + ;
 //#pragma link C++ class o2::mft::test::Dummy;
+#pragma link C++ class o2::mft::ModuleTransform + ;
 
 #pragma link C++ function o2::mft::test::addAlignableVolumes;
 #pragma link C++ function o2::mft::test::createRegularGeometry;
