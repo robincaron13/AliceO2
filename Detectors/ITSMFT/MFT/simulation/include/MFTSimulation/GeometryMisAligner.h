@@ -238,9 +238,8 @@ class GeometryMisAligner : public TObject
     fModuleMisAlig[5][1] = zwidth;
   }
 
-    void GetAlignParamsFromSurveyPositions(Bool_t verbose, Int_t level);
-    
-    
+  void GetAlignParamsFromSurveyPositions(Bool_t verbose, Int_t level);
+
   /// Set alignment resolution to misalign objects to be stored in CDB
   void SetAlignmentResolution(const TClonesArray* misAlignArray, Int_t chId = -1, Double_t chResX = -1., Double_t chResY = -1., Double_t deResX = -1., Double_t deResY = -1.);
 
@@ -257,9 +256,9 @@ class GeometryMisAligner : public TObject
   void GetUniMisAlign(Double_t cartMisAlig[3], Double_t angMisAlig[3], const Double_t lParMisAlig[6][2]) const;
   void GetGausMisAlign(Double_t cartMisAlig[3], Double_t angMisAlig[3], const Double_t lParMisAlig[6][2]) const;
 
-  Bool_t fUseUni;                 ///< use uniform distribution for misaligmnets
-  Bool_t fUseGaus;                ///< use gaussian distribution for misaligmnets
-    
+  Bool_t fUseUni;  ///< use uniform distribution for misaligmnets
+  Bool_t fUseGaus; ///< use gaussian distribution for misaligmnets
+
   Double_t fSensorMisAlig[6][2];  ///< Mean and width of the displacements of the detection elements along x,y,z (translations) and about x,y,z (rotations)
   Double_t fDetElemMisAlig[6][2]; ///< Mean and width of the displacements of the detection elements along x,y,z (translations) and about x,y,z (rotations)
   Double_t fModuleMisAlig[6][2];  ///< Mean and width of the displacements of the modules along x,y,z (translations) and about x,y,z (rotations)
@@ -275,4 +274,3 @@ class GeometryMisAligner : public TObject
 } // namespace o2
 
 #endif //ALICEO2_MFT_GEOMETRYMISALIGNER_H
-
