@@ -541,7 +541,7 @@ void Detector::addAlignableVolumes() const
   // Created:      06 Mar 2018  Mario Sitta First version (mainly ported from AliRoot)
   //
 
-  LOG(INFO) << "Add MFT alignable volumes";
+  LOG(INFO) << "---- Add MFT alignable volumes ----";
 
   if (!gGeoManager) {
     LOG(FATAL) << "TGeoManager doesn't exist !";
@@ -566,12 +566,12 @@ void Detector::addAlignableVolumes() const
     addAlignableVolumesHalf(hf, path, lastUID);
   }
 
-  //gGeoManager->Export("o2sim_geometry_ideal.root");
 
-  MisalignGeometryTest();
+  MisalignGeometry();
 
-  //gGeoManager->Export("o2sim_geometry_misaligned.root");
-
+    
+  GetAlignFromSurvey();
+    
   //return;
 }
 
@@ -630,7 +630,7 @@ void Detector::addAlignableVolumesDisk(Int_t hf, Int_t dk,
   for (Int_t sensor = mGeometryTGeo->getMinSensorsPerLadder(); sensor < mGeometryTGeo->getMaxSensorsPerLadder() + 1; sensor++) {
     nLadders += mGeometryTGeo->getNumberOfLaddersPerDisk(hf, dk, sensor);
   }
-  LOG(INFO) << " Disk " << dk << " nLadders " << nLadders;
+  LOG(INFO) << " Half-disk " << dk << ", nLadders " << nLadders;
 
   for (Int_t lr = 0; lr < nLadders; lr++) {
     addAlignableVolumesLadder(hf, dk, lr, path, lastUID);
@@ -695,7 +695,7 @@ void Detector::addAlignableVolumesChip(Int_t hf, Int_t dk, Int_t lr, Int_t ms,
 }
 
 //_____________________________________________________________________________
-void Detector::MisalignGeometryTest() const
+void Detector::MisalignGeometry() const
 {
   //
   // Test to misalign the MFT geometry
@@ -703,28 +703,66 @@ void Detector::MisalignGeometryTest() const
   // The misaligner
   o2::mft::GeometryMisAligner aGMA;
 
-  aGMA.SetHalfCartMisAlig(0.00, 0.000, 0.00, 0.000, 0., 0.000); // half-MFT translated on X, Y, Z axis
-  aGMA.SetHalfAngMisAlig(0.00, 0.00, 0.00, 0.00, 0.00, 0.000);  // half-MFT  rotated on X, Y, Z axis
+//    aGMA.SetHalfCartMisAlig(0.00, 0.000, 0.00, 0.000, 0., 0.000); // half-MFT translated on X, Y, Z axis
+//    aGMA.SetHalfAngMisAlig(0.00, 0.001, 0.00, 0.002, 0.00, 0.001);  // half-MFT  rotated on X, Y, Z axis
+//
+//    aGMA.SetModuleCartMisAlig(0.00, 0.002, 0.00, 0.002, 0., 0.000); // Modules (half-disks) translated on X, Y, Z axis
+//    aGMA.SetModuleAngMisAlig(0.00, 0.001, 0.0, 0.001, 0.0, 0.001);  // Modules (half-disks) rotated on X, Y, Z axis
+//
+//    aGMA.SetCartMisAlig(0.00, 0.002, 0.00, 0.003, 0., 0.001); // Detection Elements (ladders) translated on X, Y, Z axis
+//    aGMA.SetAngMisAlig(0.00, 0.002, 0.0, 0.001, 0.0, 0.003);   // Detection Elements (ladders) rotated on Z, X, Y  axis  (!)
+//
+//    aGMA.SetSensorCartMisAlig(0.00, 0.003, 0.00, 0.002, 0., 0.001); // Sensors (chips) translated on X, Y, Z axis
+//    aGMA.SetSensorAngMisAlig(0.00, 0.00, 0.0, 0.000, 0.0, 0.000);   // Sensors (chips) rotated on Z, X, Y  axis  (!)
+    
+  aGMA.SetHalfCartMisAlig(0.0, 0.000, 0.0, 0.000, 0., 0.000); // half-MFT translated on X, Y, Z axis
+  aGMA.SetHalfAngMisAlig(0.0, 0.00, 0.00, 0.00, 0.00, 0.00);  // half-MFT  rotated on X, Y, Z axis
 
-  aGMA.SetModuleCartMisAlig(0.00, 0.000, 0.00, 0.000, 0., 0.000); // Modules (half-disks) translated on X, Y, Z axis
-  aGMA.SetModuleAngMisAlig(0.00, 0.00, 0.00, 0.00, 0.00, 0.000);  // Modules (half-disks) rotated on X, Y, Z axis
+  aGMA.SetModuleCartMisAlig(0.00, 0.00, 0.00, 0.00, 0.0, 0.00); // Modules (half-disks) translated on X, Y, Z axis
+  aGMA.SetModuleAngMisAlig(0.00, 0.00, 0.0, 0.00, 0.0, 0.00);  // Modules (half-disks) rotated on X, Y, Z axis
 
-  aGMA.SetCartMisAlig(0.00, 0.004, 0.00, 0.003, 0., 0.005); // Detection Elements (ladders) translated on X, Y, Z axis
-  aGMA.SetAngMisAlig(0.00, 0.00, 0.0, 0.000, 0.0, 0.005);   // Detection Elements (ladders) rotated on Z, X, Y  axis  (!)
+  aGMA.SetCartMisAlig(0.00, 0.00, 0.0, 0.00, 0., 0.00); // Detection Elements (ladders) translated on X, Y, Z axis
+  aGMA.SetAngMisAlig(0.00, 0.00, 0.0, 0.00, 0.0, 0.00);   // Detection Elements (ladders) rotated on Z, X, Y  axis  (!)
 
-  aGMA.SetSensorCartMisAlig(0.00, 0.000, 0.00, 0.000, 0., 0.000); // Sensors (chips) translated on X, Y, Z axis
-  aGMA.SetSensorAngMisAlig(0.00, 0.00, 0.0, 0.000, 0.0, 0.000);   // Sensors (chips) rotated on Z, X, Y  axis  (!)
+  aGMA.SetSensorCartMisAlig(0.00, 0.00, 0.00, 0.00, 0.00, 0.00); // Sensors (chips) translated on X, Y, Z axis
+  aGMA.SetSensorAngMisAlig(0.00, 0.00, 0.0, 0.00, 0.0, 0.00);   // Sensors (chips) rotated on Z, X, Y  axis  (!)
 
   aGMA.MisAlign(true);
 
-  gGeoManager->RefreshPhysicalNodes();
+  //gGeoManager->RefreshPhysicalNodes();
 
-  gGeoManager->Export("o2sim_geometry_misaligned.root");
-  //gGeoManager->Export("o2sim_geometry_ideal.root");
+  //gGeoManager->Export("o2sim_geometry_misaligned.root");
+  gGeoManager->Export("o2sim_geometry_ideal2.root");
 
-  gGeoManager->RefreshPhysicalNodes(true);
+    
+  //gGeoManager->RefreshPhysicalNodes(false);
 
   //return true;
+}
+
+//_____________________________________________________________________________
+void Detector::GetAlignFromSurvey() const
+{
+  //
+  // Get alignment parameters from minimization procedure using survey positions
+
+  // The misaligner
+  o2::mft::GeometryMisAligner aGMA0;
+
+  //gGeoManager->RefreshPhysicalNodes();
+    
+   // aGMA0.SetSensorCartMisAlig(0.02, 0.001, 0.03, 0.001, 0.01, 0.001); // Sensors (chips) translated on X, Y, Z axis
+   // aGMA0.SetSensorAngMisAlig(0.06, 0.001, 0.04, 0.001, 0.1, 0.001);   // Sensors (chips) rotated on Z, X, Y  axis  (!)
+    
+  //gGeoManager->Export("o2sim_geometry_misaligned.root");
+  //gGeoManager->Export("o2sim_geometry_test.root");
+    
+    /// level 4 = chip
+    /// level 2 = half-disk
+    int level = 4;
+    
+    aGMA0.GetAlignParamsFromSurveyPositions(true, level);
+    
 }
 
 //_____________________________________________________________________________

@@ -14,7 +14,10 @@ o2_add_library(MFTSimulation
 			src/GeometryMisAligner.cxx
 			src/GeometryTest.cxx
 			src/ModuleTransform.cxx
-               PUBLIC_LINK_LIBRARIES O2::MFTBase ROOT::Physics)
+               PUBLIC_LINK_LIBRARIES 	O2::MFTBase 
+					ROOT::Physics 
+					ROOT::Minuit 
+					ROOT::Minuit2)
 
 o2_target_root_dictionary(MFTSimulation
                           HEADERS 	include/MFTSimulation/Detector.h
@@ -24,7 +27,7 @@ o2_target_root_dictionary(MFTSimulation
 					include/MFTSimulation/ModuleTransform.h
 					)
 
-
+#find_package( Minuit Minuit2 )
 
 o2_data_file(COPY data  DESTINATION Detectors/MFT/simulation)
 

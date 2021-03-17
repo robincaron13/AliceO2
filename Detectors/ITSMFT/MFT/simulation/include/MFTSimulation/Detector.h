@@ -119,8 +119,9 @@ class Detector : public o2::base::DetImpl<Detector>
                                Int_t& lastUID) const;
 
   //bool MisalignGeometry() override{ ; } // inherited from FairApplication (!)
-  void MisalignGeometryTest() const;
-
+  void MisalignGeometry() const;
+  void GetAlignFromSurvey() const;
+    
   Int_t isVersion() const { return mVersion; }
   /// Creating materials for the detector
 
