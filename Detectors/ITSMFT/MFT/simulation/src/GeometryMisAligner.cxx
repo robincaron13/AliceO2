@@ -460,8 +460,8 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
 
   std::vector<std::vector<o2::detectors::AlignParam>> lAPvec;
 
-  std::vector<o2::detectors::AlignParam> lAPvecModule;  // Storage of all AlignParam for each Module
-  std::vector<o2::detectors::AlignParam> lAPvecDetElem; // Storage of all AlignParam for each DetElement
+  std::vector<o2::detectors::AlignParam> lAPvecModule;  // AlignParam storage for Modules
+  std::vector<o2::detectors::AlignParam> lAPvecDetElem; // AlignParam storage for DetElements
 
     if (verbose) {
       LOG(INFO) << "----   MisAlign MFT geometry   ----";
@@ -481,7 +481,6 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
 
     // New module transformation
     TGeoCombiTrans localDeltaTransform = MisAlignHalf();
-    // localDeltaTransform.Print();
 
     TString sname = mGeometryTGeo->composeSymNameHalf(hf);
 
@@ -502,11 +501,7 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
     for (Int_t dk = 0; dk < nDisks; dk++) {
 
       // New module transformation
-      //TGeoCombiTrans localDeltaTransform = MisAlignModule();
       localDeltaTransform = MisAlignModule();
-
-      // localDeltaTransform.Print();
-      //TString sname = mGeometryTGeo->composeSymNameDisk(hf, dk);
       sname = mGeometryTGeo->composeSymNameDisk(hf, dk);
 
       lAP.setSymName(sname);
@@ -519,7 +514,6 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
 
       // Set the local delta transformation to the module
       lAP.setLocalParams(localDeltaTransform);
-      // lAP.Print();
 
       LOG(DEBUG) << "**** AlignParam Disk: " << fmt::format("{} : {} | X: {:+f} Y: {:+f} Z: {:+f} | pitch: {:+f} roll: {:+f} yaw: {:+f}\n", lAP.getSymName(), lAP.getAlignableID(), lAP.getX(), lAP.getY(), lAP.getZ(), lAP.getPsi(), lAP.getTheta(), lAP.getPhi());
 
@@ -550,23 +544,15 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
 
         lAP.setAlignableID(nAlignID++);
 
-        //        if (!matrixToAngles(localDeltaTransform.GetRotationMatrix(), lPsi, lTheta, lPhi)) {
-        //          LOG(ERROR) << "Problem extracting angles!";
-        //        }
-
         LOG(DEBUG) << "LocalDeltaTransform Ladder: " << fmt::format("{} : {} | X: {:+f} Y: {:+f} Z: {:+f} | pitch: {:+f} roll: {:+f} yaw: {:+f}\n", lAP.getSymName(), lAP.getAlignableID(), localDeltaTransform.GetTranslation()[0], localDeltaTransform.GetTranslation()[1], localDeltaTransform.GetTranslation()[2], lPsi, lTheta, lPhi);
-
-        //        if (!lAP.setLocalParams(localDeltaTransform)) {
-        //          LOG(ERROR) << "  Could not set local params for " << sname;
-        //        }
-
+          
         // Set the local transformations
         lAP.setLocalParams(localDeltaTransform);
 
         LOG(DEBUG) << "AlignParam Ladder: " << fmt::format("  {} : {} | X: {:+f} Y: {:+f} Z: {:+f} | pitch: {:+f} roll: {:+f} yaw: {:+f}\n", lAP.getSymName(), lAP.getAlignableID(), lAP.getX(), lAP.getY(), lAP.getZ(), lAP.getPsi(), lAP.getTheta(), lAP.getPhi());
 
         if (verbose) {
-          //LOG(INFO) << "---------> MisAligned element : " << sname << "   Ladder: " << lr;
+          LOG(INFO) << "-> MisAligned element : " << sname << "   Ladder: " << lr;
         }
 
         // Apply misaligned detection element to the geometry
@@ -596,11 +582,6 @@ void GeometryMisAligner::MisAlign(Bool_t verbose)
   lAPvec.push_back(lAPvecModule);
   lAPvec.push_back(lAPvecDetElem);
 
-    
-    //mTransform.PrintAlignResults();
-    
-
-  // return newGeometryTransformer;
 }
 
 void GeometryMisAligner::SetAlignmentResolution(const TClonesArray* misAlignArray, Int_t rChId, Double_t rChResX, Double_t rChResY, Double_t rDeResX, Double_t rDeResY)
@@ -616,12 +597,10 @@ void GeometryMisAligner::SetAlignmentResolution(const TClonesArray* misAlignArra
   TMatrixDSym mChCorrMatrix(6);
   mChCorrMatrix[0][0] = chResX * chResX;
   mChCorrMatrix[1][1] = chResY * chResY;
-  //  mChCorrMatrix.Print();
 
   TMatrixDSym mDECorrMatrix(6);
   mDECorrMatrix[0][0] = deResX * deResX;
   mDECorrMatrix[1][1] = deResY * deResY;
-  //  mDECorrMatrix.Print();
 
   /*
   AliAlignObjMatrix *alignMat = 0x0;
@@ -665,44 +644,34 @@ void GeometryMisAligner::SetAlignmentResolution(const TClonesArray* misAlignArra
 void GeometryMisAligner::GetAlignParamsFromSurveyPositions(Bool_t verbose,Int_t level)
 {
   
-  /// Calculates  module alignment parameters from the surveyed positions
+  /// Loop on the detection elements
 
     if (verbose) {
       LOG(INFO) << "----  Get MFT Align Parameters ----";
     }
     
   mGeometryTGeo = GeometryTGeo::Instance();
-
   o2::detectors::AlignParam lAP;
 
   // The function to get misalignment transformation matrices of DE from surveyed positions
   o2::mft::ModuleTransform mTransform;
 
   Int_t nAlignID = 0;
-  //static TGeoHMatrix matIGTransf;
   double lPsi, lTheta, lPhi = 0.;
   Int_t nChip = 0;
     
-  Double_t padpositions[4][3] = { {0.01, 0.01, 0.0013},
-                                    {0.01+3.0, 0.01, 0.0023},
-                                    {0.01, 0.01+1.5, 0.0014},
-                                    {0.01+3.0, 0.01+1.5, 0.0011} };
-    
   Int_t nHalf = mGeometryTGeo->getNumberOfHalfs();
-    
     
     TGeoCombiTrans localDeltaTransform;
 
   for (Int_t hf = 0; hf < nHalf; hf++) {
 
     Int_t nDisks = mGeometryTGeo->getNumberOfDisksPerHalf(hf);
-
     TString sname = mGeometryTGeo->composeSymNameHalf(hf);
 
     for (Int_t dk = 0; dk < nDisks; dk++) {
 
       sname = mGeometryTGeo->composeSymNameDisk(hf, dk);
-
       Int_t nLadders = 0;
 
       for (Int_t sensor = mGeometryTGeo->getMinSensorsPerLadder(); sensor < mGeometryTGeo->getMaxSensorsPerLadder() + 1; sensor++) {
@@ -715,17 +684,9 @@ void GeometryMisAligner::GetAlignParamsFromSurveyPositions(Bool_t verbose,Int_t 
           mTransform.SetSensorId(hf, dk, 0, 0);
           mTransform.SetSymName(sname);
             
-//            for (Int_t kpad = 0; kpad < 4; kpad++){
-//                mTransform.SetMisAlignPadPosition(kpad, padpositions[kpad][0], padpositions[kpad][1], padpositions[kpad][2]);
-//
-//            }
-            
             Double_t parErr[6] = {0.001, 0.001, 0.001, 0.001, 0.001, 0.001};
             Int_t resultTransform = mTransform.GetModuleMeanTransform(localDeltaTransform, parErr, level);
             
-            if (verbose) {
-              //localMatrixTransform.Print();
-          }
         }
         
       for (Int_t lr = 0; lr < nLadders; lr++) {  //nLadders
@@ -738,50 +699,19 @@ void GeometryMisAligner::GetAlignParamsFromSurveyPositions(Bool_t verbose,Int_t 
 
           localDeltaTransform = MisAlignSensor();
             
-            
             sname = mGeometryTGeo->composeSymNameChip(hf, dk, lr, sr);
-
-//            lAP.setSymName(sname);
-//            lAP.setAlignableID(nAlignID++);
-//            lAP.setLocalParams(localDeltaTransform);
-//            lAP.applyToGeometry();
                         
             TString path = "/cave_1/barrel_1/" + sname;
-
             TGeoHMatrix m;
-            //lAP.createLocalMatrix(m);
-            //m = lAP.createMatrix();
-
-//            TGeoVolume* volSensor = gGeoManager->GetVolume(sname);
-//            LOG(INFO) << volSensor->GetNodes()->GetEntries();
-//
-//            TGeoPhysicalNode* node = (TGeoPhysicalNode*)volSensor->GetNode(0);
-//            TGeoHMatrix *g = node->GetMatrix(node->GetLevel() );
-//            TGeoHMatrix g1 = g->Inverse() ;
-//            TGeoHMatrix g2 = g1.Inverse() ;
-            
-//              TGeoPhysicalNode* node = (TGeoPhysicalNode*)gGeoManager->MakePhysicalNode(path);
-//              TGeoHMatrix *g = node->GetMatrix(node->GetLevel() - 1);
-//              TGeoHMatrix g1 = g->Inverse() ;
-//              TGeoHMatrix g2 = g1.Inverse() ;
 
             if (level ==4) {
-                TGeoCombiTrans localMatrixTransform = localDeltaTransform;  //g->GetRotationMatrix ()
+                TGeoCombiTrans localMatrixTransform = localDeltaTransform;
         
               mTransform.SetSensorId(hf, dk, lr, sr);
               mTransform.SetSymName(sname);
                 
-    //            for (Int_t kpad = 0; kpad < 4; kpad++){
-    //                mTransform.SetMisAlignPadPosition(kpad, padpositions[kpad][0], padpositions[kpad][1], padpositions[kpad][2]);
-    //
-    //            }
-                
                 Double_t parErr[6] = {0.001, 0.001, 0.001, 0.001, 0.001, 0.001};
                 Int_t resultTransform = mTransform.GetModuleMeanTransform(localDeltaTransform, parErr, level);
-                
-                if (verbose) {
-                  //localMatrixTransform.Print();
-              }
                 
             }
             
@@ -791,6 +721,10 @@ void GeometryMisAligner::GetAlignParamsFromSurveyPositions(Bool_t verbose,Int_t 
     }
   }
 
-  //mTransform.PrintAlignResults();
+    
+  if (verbose) {
+        mTransform.PrintAlignResults();
+  }
+  
     
 }

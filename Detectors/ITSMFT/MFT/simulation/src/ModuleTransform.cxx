@@ -37,18 +37,8 @@
 #include "TProfile2D.h"
 
 
-//#include "AliLog.h"
-//
-//#include "AliMUONGeometryTransformer.h"
-//#include "AliMUONGeometryModuleTransformer.h"
-//#include "AliMUONGeometryDetElement.h"
-//
-//#include "AliMpExMap.h"
-//#include "AliMpExMapIterator.h"
-
 #include "MFTSimulation/ModuleTransform.h"
 #include "MFTSimulation/GeometryMisAligner.h"
-//#include "TMinuit.h"
 
 #include "MFTBase/Geometry.h"
 #include "MFTBase/GeometryTGeo.h"
@@ -65,8 +55,7 @@ using namespace std;
 
 using namespace o2::mft;
 using namespace o2::detectors;
-//class TFitter;
-//class TMinuit;
+
 class TFile;
 
 static void MyFcnDisk(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, Int_t iflag);
@@ -107,9 +96,6 @@ ClassImp(o2::mft::ModuleTransform);
 ModuleTransform::ModuleTransform()
   : TObject(),
     fModuleId(-1)
-    // fIdealGeoTransformer(0x0),s
-    // fAlignGeoTransformer(0x0),
-    // detElements(0x0),
     , fFitter(0x0)
     , gMinuit(new TMinuit(6))
 {
@@ -127,7 +113,6 @@ ModuleTransform::ModuleTransform()
 ModuleTransform::~ModuleTransform()
 {
   // Destructor
-  //fiDETrf.Clear();
     myfilestored_alignparams.close();
     
     myhistos->Write();
@@ -154,18 +139,16 @@ Double_t ModuleTransform::MyChi2Chip(Double_t* par)
     
     std::vector<TGeoCombiTrans> mIdealVec;
     std::vector<TGeoCombiTrans> mAlignedVec;
-
-    //trfTemp.Print();
     
     
       mIdealVec.clear();
       mAlignedVec.clear();
     
     TGeoCombiTrans kiChipTransformer ;
-    TGeoCombiTrans kaChipTransformer ; // to be changed
+    TGeoCombiTrans kaChipTransformer ;
     
     TGeoCombiTrans kiPadTransformer ;
-    TGeoCombiTrans kaPadTransformer ; // to be changed
+    TGeoCombiTrans kaPadTransformer ;
     
     Float_t x,y,z;
     
@@ -179,7 +162,6 @@ Double_t ModuleTransform::MyChi2Chip(Double_t* par)
     myidealposition2.open ("idealpositionsSensor.txt");
     while(1){
         myidealposition2 >> half >> disk >> ladder >> sensor >> pad >> x >> y >> z;
-        //cout<<x<<endl;
         if (!myidealposition2.good() ) break;
         if (nlines<4){
             xpadideal[nlines] = x;
@@ -187,9 +169,7 @@ Double_t ModuleTransform::MyChi2Chip(Double_t* par)
             zpadideal[nlines] = z;
             
             if (nlines==0) kiChipTransformer.SetTranslation(xpadideal[nlines], ypadideal[nlines], zpadideal[nlines]);
-//            kiModuleTransformer.RotateZ(gRandom->Gaus(0.00,0.01));
-//            kiModuleTransformer.RotateY(gRandom->Gaus(0.0,0.01));
-//            kiModuleTransformer.RotateX(gRandom->Gaus(0.0,0.01));
+
             kiPadTransformer.SetTranslation( xpadideal[nlines] - kiChipTransformer.GetTranslation()[0], ypadideal[nlines] - kiChipTransformer.GetTranslation()[1], zpadideal[nlines] - kiChipTransformer.GetTranslation()[2]);
 
             mIdealVec.push_back(kiPadTransformer);
@@ -207,17 +187,13 @@ Double_t ModuleTransform::MyChi2Chip(Double_t* par)
         mysurveyposition2 >> half >> disk >> ladder >> sensor >> pad >> x >> y >> z;
 
         if (!mysurveyposition2.good() ) break;
-        //if ( (x != 0) | (y != 0) | (z != 0) ) kaModuleTransformer.SetTranslation(x, y, z) ;
         if (nlines<4){
             xpad[nlines] = x;
             ypad[nlines] = y;
             zpad[nlines] = z;
 
             if (nlines==0) kaChipTransformer.SetTranslation(xpadideal[nlines] +xpad[nlines], ypadideal[nlines] +ypad[nlines], zpadideal[nlines] +zpad[nlines]);
-//            kaModuleTransformer.RotateZ(gRandom->Gaus(0.1,0.02));
-//            kaModuleTransformer.RotateY(gRandom->Gaus(0.06,0.01));
-//            kaModuleTransformer.RotateX(gRandom->Gaus(-0.04,0.01));
-            //kaPadTransformer.SetTranslation(xpadideal[nlines] +xpad[nlines], ypadideal[nlines] +ypad[nlines], zpadideal[nlines] +zpad[nlines]);
+            
             kaPadTransformer.SetTranslation(xpad[nlines], ypad[nlines], zpad[nlines]);
 
             mAlignedVec.push_back(kaPadTransformer);
@@ -257,27 +233,20 @@ Double_t ModuleTransform::MyChi2Chip(Double_t* par)
         TGeoHMatrix miPadGloTrf = miChipGlo * miPadTrf ;
         TGeoCombiTrans miPadGlo(miPadGloTrf);
 
-        //trfmiPadGlo.LocalToMaster(pl, pg);
-        //trfmiPadGlo.MasterToLocal(pl, pg);
-        //trfmiPadGlo.Print();
+        // trfmiPadGlo.LocalToMaster(pl, pg) this could be also used
+        // trfmiPadGlo.MasterToLocal(pl, pg) or this
         
         for(int k=0; k<3; k++){
             pg[k] = miPadGlo.GetTranslation()[k];
             apg[k] = maPadGlo.GetTranslation()[k];
         }
-        
 
-        //maPadGlo.LocalToMaster(pl, apg);
-        //maPadGlo.MasterToLocal(pl, apg);
-        //mat2.MasterToLocal(pl, apg);
-
+        // maPadGlo.LocalToMaster(pl, apg) this could be also used
         
         lChi2 += (pg[0] - apg[0]) * (pg[0] - apg[0]) / (ep[0] * ep[0]);
         lChi2 += (pg[1] - apg[1]) * (pg[1] - apg[1]) / (ep[1] * ep[1]);
         lChi2 += (pg[2] - apg[2]) * (pg[2] - apg[2]) / (ep[2] * ep[2]);
-            
-        //LOG(INFO) <<par[0]<<"  "<<par[1]<<"  "<<par[2]<<"  "<<TMath::RadToDeg() * par[3]<<"  "<<TMath::RadToDeg() * par[4]<<"  "<<TMath::RadToDeg() * par[5]<<"  "<<i<<"    ::  "<<pg[0]<<"  "<<pg[1]<<"  "<<pg[2]<<"    ::  "<<apg[0]<<"  "<<apg[1]<<"  "<<apg[2];
-//        maPadTrf.LocalToMaster(pl, apg);
+        
     }
   
     mIdealVec.clear();
@@ -291,8 +260,6 @@ Double_t ModuleTransform::MyChi2Chip(Double_t* par)
 TGeoCombiTrans ModuleTransform::GetMatrixPadPosition() const
 {
   /// Misalign given transformation and return the misaligned transformation.
-
-  
   TGeoTranslation deltaTrans(fPadMisAlig[0][0], fPadMisAlig[1][0], fPadMisAlig[2][0]);
   TGeoRotation deltaRot;
   deltaRot.RotateX(0.0);
@@ -309,13 +276,10 @@ TGeoCombiTrans ModuleTransform::GetMatrixPadPosition() const
 //_____________________________________________________________________________
 static void MyFcnChip(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, Int_t iflag)
 {
-  ///
   /// Standard function as needed by Minuit-like minimization procedures.
   /// For the set of parameters par calculates and returns chi-squared.
-  ///
-//  TMinuit *gMinuit;  //initialize TMinuit
-
-    // smuggle a C++ object into a C function
+    
+  // smuggle a C++ object into a C function
   ModuleTransform* aMuonModule = (ModuleTransform*)gMinuit->GetObjectFit();
 
     
@@ -331,15 +295,11 @@ static void MyFcnChip(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, In
 //_____________________________________________________________________________
 static void MyFcnDisk(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, Int_t iflag)
 {
-  ///
   /// Standard function as needed by Minuit-like minimization procedures.
   /// For the set of parameters par calculates and returns chi-squared.
-  ///
-//  TMinuit *gMinuit;  //initialize TMinuit
 
-    // smuggle a C++ object into a C function
+  // smuggle a C++ object into a C function
   ModuleTransform* aMuonModule = (ModuleTransform*)gMinuit->GetObjectFit();
-
     
   f = aMuonModule->MyChi2Disk(par);
   if (iflag == 3) {
@@ -353,8 +313,7 @@ static void MyFcnDisk(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, In
 //_____________________________________________________________________________
 Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_t* parErr, Int_t level=4)
 {
-  /// Main function to obtain the misalignments from the surveyed position of the button targets;
-    
+    /// Main function to obtain the misalignments from the surveyed position of the button targets;
     /// level to the last degree of freedom to align
     /// level 0 = MFT
     /// level 1 = half-MFT
@@ -362,12 +321,6 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
     /// level 3 = ladder
     /// level 4 = chip
 
-//    LKFMinuit * ModuleTransform = new LKFMinuit();
-    //double  LKFMinuit::minuitFunction( const double * x);
-    //int ndim = 6;
-    //ROOT::Math::Functor fcn(ndim, ModuleTransform, &LKFMinuit::minuitFunction);
-    //ROOT::Fit::Fitter fitter;
-        
     Double_t x,y,z;
     Double_t xp[1000];
     Double_t yp[1000];
@@ -378,7 +331,6 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
     Double_t zpi[1000];
     
     Int_t nlines = 0;
-    //Double_t meanx,meany,meanz;
     
     Double_t half,disk,sensor,pad;
     Double_t ladder=0.0;
@@ -387,24 +339,17 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
     Int_t pflag=0;
     
     if(level == 4){
-        
         myfile_idealpositions.open ("idealpositions.txt");
-
         while( 1){
             myfile_idealpositions >> half>> disk >> ladder >> sensor >> pad >> x >> y >> z;
-            //cout<<ladder<<" x  "<<x<<" y "<<y<<" z  "<<z;
             if (!myfile_idealpositions.good() ) break;
-           
             if ( (Int_t(half)==fHalfId) && (Int_t(disk)==fDiskId) && (Int_t(ladder)==fLadderId) && (Int_t(sensor)==fSensorId) ) {
                 xpi[pflag]=x;
                 ypi[pflag]=y;
                 zpi[pflag]=z;
-                
                 pflag++;
-            
             }
             nlines++;
-
         }
         
         pflag=0;
@@ -413,19 +358,14 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
         myfile_surveypositions.open ("survey_true_padpositions.txt");
         while( 1){
             myfile_surveypositions >> half>> disk >> ladder >> sensor >> pad >> x >> y >> z;
-
             if (!myfile_surveypositions.good() ) break;
-           
             if ( (Int_t(half)==fHalfId) && (Int_t(disk)==fDiskId) && (Int_t(ladder)==fLadderId) && (Int_t(sensor)==fSensorId) ) {
                 xp[pflag]=x;
                 yp[pflag]=y;
                 zp[pflag]=z;
-                
                 pflag++;
-               
             }
             nlines++;
-
         }
         
         mysurveyposition.open ("surveySensorPositions.txt");
@@ -447,14 +387,14 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
             myidealposition <<"\n";
             
             histo2Dxy_ideal->Fill(xpi[k],ypi[k]);
-            if ( (fHalfId==1) && (fDiskId==4) && (fLadderId>16) ) histo2Dxy_ladderIdeal->Fill(xpi[k],ypi[k]);
-            
+            if ( (fHalfId==1) && (fDiskId==4) && (fLadderId>16) ){ histo2Dxy_ladderIdeal->Fill(xpi[k],ypi[k]);
+            }
             Double_t xpad0=xpi[k]+xp[k];
             Double_t ypad0=ypi[k]+yp[k];
             Double_t zpad0=(zpi[k]+zp[k]);
 
-            if ( (fHalfId==1) && (fDiskId==4) && (fLadderId>16) ) histo2Dxy_ladderMisaligned->Fill(xpad0,ypad0);
-
+            if ( (fHalfId==1) && (fDiskId==4) && (fLadderId>16) ){ histo2Dxy_ladderMisaligned->Fill(xpad0,ypad0);
+            }
         }
         myidealposition.close();
         
@@ -470,7 +410,6 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
         while( 1){
             myfile_idealpositionsdisk >> half>> disk >> side >> x >> y >> z;
             if (!myfile_idealpositionsdisk.good() ) break;
-
             if ( (Int_t(half)==fHalfId) && (Int_t(disk)==fDiskId) && (Int_t(side)==0) ) {
                 xpi[0]=x;
                 ypi[0]=y;
@@ -486,11 +425,9 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
         }
         nlines=0;
         myfile_surveypositionsdisk.open ("surveypositionsdisk_afterP2.txt");
-        //myfile_surveypositionsdisk.open ("surveypositionsdisk_beforP2.txt");
         while( 1){
             myfile_surveypositionsdisk >> half>> disk >> side >> x >> y >> z;
             if (!myfile_surveypositionsdisk.good() ) break;
-
             if ( (Int_t(half)==fHalfId) && (Int_t(disk)==fDiskId) && (Int_t(side)==0) ) {
                 xp[0]=x;
                 yp[0]=y;
@@ -536,16 +473,12 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
 
     }
     
-    
     Int_t value = 1;
     Double_t partest[20] = {0};
     
     if(level == 4) gMinuit->SetFCN( MyFcnChip );
     if(level == 2) gMinuit->SetFCN( MyFcnDisk );
 
-    //MyFcn(value,partest,partest[0],partest,value);
-    
-    
     // Vector of step, initial min and max value
     Double_t vstrt[6]={0.0};
     Double_t stp[6];
@@ -559,9 +492,7 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
     stp[0]= stp[1] =stp[2] =0.0001;
     bmin[0] = bmin[1] =bmin[2] =vstrt[0] -1.0;
     bmax[0] =bmax[1] =bmax[2] = vstrt[0] +1.0;
-    
-    //modTransf.Print();
-    
+        
     //rotation transformation
     vstrt[3] = 0;
     vstrt[4] = 0;
@@ -575,6 +506,7 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
     
     gMinuit->SetPrintLevel(-1);
     
+    // initialize the 6 minuit alignment parameters
     gMinuit->mnparm(0, "dx", vstrt[0], stp[0], bmin[0],bmax[0], ierflg);
     gMinuit->mnparm(1, "dy", vstrt[1], stp[1], bmin[1],bmax[1], ierflg);
     gMinuit->mnparm(2, "dz", vstrt[2], stp[2], bmin[2],bmax[2], ierflg);
@@ -583,68 +515,25 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
     gMinuit->mnparm(5, "rz", vstrt[5], stp[5], bmin[5],bmax[5], ierflg);
     
     gMinuit->SetErrorDef(1);
-    
-//  fFitter->SetParameter(0, "dx", 0, 0.01, -2, 2);
-//  fFitter->SetParameter(1, "dy", 0, 0.01, -2, 2);
-//  fFitter->SetParameter(2, "dz", 0, 0.01, -5, 5);
-//  fFitter->SetParameter(3, "rx", 0, 0.0001, -0.05, 0.05);
-//  fFitter->SetParameter(4, "ry", 0, 0.0001, -0.05, 0.05);
-//  fFitter->SetParameter(5, "rz", 0, 0.0001, -0.05, 0.05);
 
     gMinuit->mnexcm("SET NOW", arglist ,1,ierflg);
     
-  arglist[0] = 2;
+    arglist[0] = 2;
   
     gMinuit->mnexcm("SET STR", arglist, 1,ierflg);
-    //arglist[0] = 1;
-    //gMinuit->mnexcm("FIX ", arglist ,1,ierflg);
-//    gMinuit->FixParameter(0);
-//    gMinuit->FixParameter(1);
-//    gMinuit->FixParameter(2);
-    
-//    gMinuit->FixParameter(4);
-//    gMinuit->FixParameter(5);
-    
     
     // since only 2 pin/alignment markers per disk
     // produces no effects of a rotation on y
     if(level == 2) gMinuit->FixParameter(3);
     
     arglist[0] = 300;
-    //arglist[1] = 0.001;
     gMinuit->mnexcm("MIGRAD", arglist ,1,ierflg);
-    //gMinuit->mnexcm("MINIMIZE", arglist,1,ierflg);
+    //we could also call: gMinuit->mnexcm("MINIMIZE", arglist,1,ierflg)
 
     arglist[0] = 0;
-    //gMinuit->mnexcm("IMPROVE", arglist,1,ierflg);
+    //we could also call: gMinuit->mnexcm("IMPROVE", arglist,1,ierflg)
     gMinuit->mnexcm("SCAN", arglist,1,ierflg);
 
-//  fFitter->ExecuteCommand("SET PRINT", arglist, 1);
-//  fFitter->ExecuteCommand("SET ERR", arglist, 1);
-//  arglist[0] = 0;
-//  //fFitter->ExecuteCommand("SIMPLEX", arglist, 1);
-//  //  fFitter->ExecuteCommand("MINIMIZE", arglist, 1);
-//  fFitter->ExecuteCommand("MIGRAD", arglist, 1);
-//  fFitter->ExecuteCommand("IMPROVE", arglist, 1);
-//  //  fFitter->ExecuteCommand("MINOS", arglist, 1);
-//  //  fFitter->ExecuteCommand("CALL 3", arglist,0);
-
-
-    //gMinuit->GetParameter(0,G0,errG0);
-    //gMinuit->GetParameter(1,E0,errE0);
-    
-    // log likelihood method
-//    ouble ln0,edm,errdef;
-//    int nvpar,nparx,icstat;
-//    gMinuit->mnstat(ln0,edm,errdef,nvpar,nparx,icstat);
-    
-    //1 sigma contour
-//    Tgraph* graph1 = (TGraph*) gMinuit->Contour(10,0,1);
-//    graph1->Draw();
-    
-     //2 sigma contour
-    //gMinuit->SetErrorDef(2);
-    //Tgraph*  graph2 =(TGraph*) gMinuit->Contour(10,0,1);
     
     Double_t parlist[10]={0.0};
     Double_t errlist[10]={0.0};
@@ -663,57 +552,28 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
                            gMinuit->GetParameter(1,parlist[1],errlist[1]),
                            gMinuit->GetParameter(2,parlist[2],errlist[2]));
 
-  
-
-//    TNtuple ntuple("ntuple","data from alignment survey position","x:y:z:ex:ey:ez");
-//    //TTree *treeXYZ_PadPositions = new TTree("treeXYZ_PadPositions","treeXYZ_PadPositions");
-//
-//    TString fname = Form("align_par%d.root",nchip); ;
-//    TFile *falignpar = new TFile(fname,"recreate");
-//
-//    // Fill something to store alignment parameter
-//    Float_t hic_number, x, y, z, ex, ey, ez;
-//
-////    treeXYZ_PadPositions->Branch("hic_number",&hic_number);
-////    treeXYZ_PadPositions->Branch("x",&x);
-////    treeXYZ_PadPositions->Branch("y",&y);
-////    treeXYZ_PadPositions->Branch("z",&z);
-////    treeXYZ_PadPositions->Branch("ex",&x);
-////    treeXYZ_PadPositions->Branch("ey",&y);
-////    treeXYZ_PadPositions->Branch("ez",&z);
-//
-//    hic_number=0; hic_number++;
-//    x=parlist[0]; ex=parErr[0];
-//    y=parlist[1]; ey=parErr[1];
-//    z=parlist[2]; ez=parErr[2];
-//
-//    ntuple.Fill(x,y,z,ex,ey,ez);
-//
-//    //treeXYZ_PadPositions->Fill();
-//    if(falignpar) falignpar->Write();
-//    if(falignpar) falignpar->Close();  // vstrt[0]
     
     Int_t ipad=0;
     
-//    for (int ipad = 0; ipad < 4; ipad++){
-//        myfilestored_alignparams << fHalfId <<" "<<fDiskId <<" "<< fLadderId <<" " <<fSensorId<<" "<<ipad <<" ";
+    /*
+    for (int ipad = 0; ipad < 4; ipad++){
+        myfilestored_alignparams << fHalfId <<" "<<fDiskId <<" "<< fLadderId <<" " <<fSensorId<<" "<<ipad <<" ";
+
+//        for (int j = 0; j < 3; j++){
+//          //myfilestored_alignparams<< ipad <<" " << parlist[j] ; //write to file
+//            myfilestored_alignparams <<vstrt[j]<<" " ; //write to file
 //
-////        for (int j = 0; j < 3; j++){
-////          //myfilestored_alignparams<< ipad <<" " << parlist[j] ; //write to file
-////            myfilestored_alignparams <<vstrt[j]<<" " ; //write to file
-////
-////        }
-//
-//        if(ipad==0) myfilestored_alignparams <<gRandom->Gaus(0.0,0.0001)<<" "<<gRandom->Gaus(0.0,0.0001)<<" "<<gRandom->Gaus(0.0,0.0001) <<" ";
-//        if(ipad==1) myfilestored_alignparams <<gRandom->Gaus(0.0,0.0001)<<" "<<gRandom->Gaus(0.0,0.0001)<<" "<<gRandom->Gaus(0.0,0.0001) <<" ";
-//        if(ipad==2) myfilestored_alignparams <<gRandom->Gaus(0.0,0.0001)<<" "<<gRandom->Gaus(1.5*0.9848- 1.5,0.0001) <<" "<<gRandom->Gaus(1.5*0.1736,0.0001) <<" ";
-//        if(ipad==3) myfilestored_alignparams <<gRandom->Gaus(0.0,0.0001)<<" "<<gRandom->Gaus(1.5*0.9848- 1.5,0.0001)<<" "<<gRandom->Gaus(1.5*0.1736,0.0001) <<" ";
-//
-//        myfilestored_alignparams <<"\n";
-//
-//    }
-    
-//
+//        }
+
+        if(ipad==0) myfilestored_alignparams <<gRandom->Gaus(0.0,0.0001)<<" "<<gRandom->Gaus(0.0,0.0001)<<" "<<gRandom->Gaus(0.0,0.0001) <<" ";
+        if(ipad==1) myfilestored_alignparams <<gRandom->Gaus(0.0,0.0001)<<" "<<gRandom->Gaus(0.0,0.0001)<<" "<<gRandom->Gaus(0.0,0.0001) <<" ";
+        if(ipad==2) myfilestored_alignparams <<gRandom->Gaus(0.0,0.0001)<<" "<<gRandom->Gaus(1.5*0.9848- 1.5,0.0001) <<" "<<gRandom->Gaus(1.5*0.1736,0.0001) <<" ";
+        if(ipad==3) myfilestored_alignparams <<gRandom->Gaus(0.0,0.0001)<<" "<<gRandom->Gaus(1.5*0.9848- 1.5,0.0001)<<" "<<gRandom->Gaus(1.5*0.1736,0.0001) <<" ";
+
+        myfilestored_alignparams <<"\n";
+    }
+    */
+
 
     myfilestored_alignparams << fHalfId <<" "<<fDiskId <<" "<< fLadderId <<" " <<fSensorId<<" ";
     for (int j = 0; j < 3; j++){
@@ -731,17 +591,14 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
     histo_rx->Fill(TMath::RadToDeg() * parlist[3]);
     histo_ry->Fill(TMath::RadToDeg() * parlist[4]);
     histo_rz->Fill(TMath::RadToDeg() * parlist[5]);
-    
-    
+        
     
     TGeoCombiTrans mAlignParams;
-      
     mAlignParams.RotateZ(TMath::RadToDeg() * parlist[5]);
     mAlignParams.RotateY(TMath::RadToDeg() * parlist[4]);
     mAlignParams.RotateX(TMath::RadToDeg() * parlist[3]);
     mAlignParams.SetTranslation(parlist[0], parlist[1], parlist[2]);
-    
-    //mAlignParams.Print();
+        
     
     o2::detectors::AlignParam lAlignParams;
     lAlignParams.setRotation(TMath::RadToDeg() * parlist[3], TMath::RadToDeg() * parlist[4], TMath::RadToDeg() * parlist[5]);
@@ -751,14 +608,6 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
     // Store the AlignParam object in vector (using the obtained alignment parameters from minimization)
     vecAlignParam.push_back(lAlignParams);
     
-    //  for (o2::detectors::AlignParam MDalignparam : lAPvecModule) {
-    //    MDalignparam.Print();
-    //    for (o2::detectors::AlignParam DEalignparam : lAPvecDetElem) {
-    //      DEalignparam.Print();
-    //    }
-    //  }
-    
-    
     //LOG(INFO) << " transf.par x = "<<parlist[0]<<" +/- "<<parErr[0]<< "   -> fill align par file " ;
     
   return 1;
@@ -767,7 +616,6 @@ Int_t ModuleTransform::GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_
 void ModuleTransform::PrintAlignResults(){
     
     for (o2::detectors::AlignParam AlignPars : vecAlignParam) {
-        //LOG(INFO) <<" **************** " ;
         AlignPars.Print();
     }
 }
@@ -795,8 +643,6 @@ Double_t ModuleTransform::MyChi2Disk(Double_t* par)
     
     std::vector<TGeoCombiTrans> mIdealVec;
     std::vector<TGeoCombiTrans> mAlignedVec;
-
-    //trfTemp.Print();
     
     
       mIdealVec.clear();
@@ -820,7 +666,6 @@ Double_t ModuleTransform::MyChi2Disk(Double_t* par)
     myidealposition2.open ("idealpositionsdiskonly.txt");
     while(1){
         myidealposition2 >> half >> disk >> side >> x >> y >> z;
-        //cout<<x<<endl;
         if (!myidealposition2.good() ) break;
         if (nlines<4){
             xpadideal[nlines] = x;
@@ -844,7 +689,6 @@ Double_t ModuleTransform::MyChi2Disk(Double_t* par)
     mysurveyposition2.open ("surveypositionsdiskonly.txt");
     while(1){
         mysurveyposition2 >> half >> disk >> side  >> x >> y >> z;
-
         if (!mysurveyposition2.good() ) break;
         if (nlines<4){
             xpad[nlines] = x;
@@ -880,7 +724,6 @@ Double_t ModuleTransform::MyChi2Disk(Double_t* par)
     for (int i=0; i<mIdealVec.size(); i++){
         
         miPadTrf = mIdealVec.at(i);
-        
         if( mAlignedVec.size()==mIdealVec.size() ) maPadLocTrf = mAlignedVec.at(i);
 
         TGeoHMatrix maPadLoc2Trf = maPadLocTrf * miPadTrf ;
@@ -901,8 +744,6 @@ Double_t ModuleTransform::MyChi2Disk(Double_t* par)
         lChi2 += (pg[1] - apg[1]) * (pg[1] - apg[1]) / (ep[1] * ep[1]);
         lChi2 += (pg[2] - apg[2]) * (pg[2] - apg[2]) / (ep[2] * ep[2]);
             
-        //LOG(INFO) <<par[0]<<"  "<<par[1]<<"  "<<par[2]<<"  "<<TMath::RadToDeg() * par[3]<<"  "<<TMath::RadToDeg() * par[4]<<"  "<<TMath::RadToDeg() * par[5]<<"    ::  "<<pg[0]<<"  "<<pg[1]<<"  "<<pg[2]<<"    ::  "<<apg[0]<<"  "<<apg[1]<<"  "<<apg[2];
-
     }
   
     mIdealVec.clear();

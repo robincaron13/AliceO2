@@ -534,14 +534,12 @@ void Detector::defineSensitiveVolumes()
 //_____________________________________________________________________________
 void Detector::addAlignableVolumes() const
 {
-  //
-  // Creates entries for alignable volumes associating the symbolic volume
-  // name with the corresponding volume path.
-  //
-  // Created:      06 Mar 2018  Mario Sitta First version (mainly ported from AliRoot)
-  //
+  /// Creates entries for alignable volumes associating the symbolic volume
+  /// name with the corresponding volume path.
+  ///
+  /// Created:      06 Mar 2018  Mario Sitta First version (mainly ported from AliRoot)
 
-  LOG(INFO) << "---- Add MFT alignable volumes ----";
+  LOG(INFO) << "(!) Add MFT alignable volumes ";
 
   if (!gGeoManager) {
     LOG(FATAL) << "TGeoManager doesn't exist !";
@@ -550,8 +548,6 @@ void Detector::addAlignableVolumes() const
 
   TString path = Form("/cave_1/barrel_1/%s_0", GeometryTGeo::getMFTVolPattern());
   TString sname = GeometryTGeo::composeSymNameMFT();
-
-  //LOG(INFO) << sname << "  addAlignableVolumes "<< path;
 
   LOG(DEBUG) << sname << " <-> " << path;
 
@@ -566,23 +562,19 @@ void Detector::addAlignableVolumes() const
     addAlignableVolumesHalf(hf, path, lastUID);
   }
 
-
-  MisalignGeometry();
-
+  ///  TEMPORARILY: we call here, the misaligned function (1), or the minimization to get alignment parameters (2)
     
-  GetAlignFromSurvey();
+  //MisalignGeometry();  // (1)
     
-  //return;
+  //GetAlignFromSurvey();  // (2)
+    
 }
 
 //_____________________________________________________________________________
 void Detector::addAlignableVolumesHalf(int hf, TString& parent, Int_t& lastUID) const
 {
-  //
-  // Add alignable volumes for a Half MFT and its daughters
-  //
+  /// Add alignable volumes for a Half MFT and its daughters
 
-  //TString wrpV = mWrapperLayerId[lr] != -1 ? Form("%s%d_1", GeometryTGeo::getITSWrapVolPattern(), mWrapperLayerId[lr]) : "";
   TString path = Form("%s/%s_%d_%d", parent.Data(), GeometryTGeo::getMFTHalfPattern(), hf, hf);
   TString sname = mGeometryTGeo->composeSymNameHalf(hf);
 
@@ -592,10 +584,7 @@ void Detector::addAlignableVolumesHalf(int hf, TString& parent, Int_t& lastUID) 
     LOG(FATAL) << "Unable to set alignable entry ! " << sname << " : " << path;
   }
 
-  //LOG(INFO) << sname << "  addAlignableVolumesHalf "<< path;
-
-  //  const V3Layer* lrobj = mGeometry[lr];
-  //  Int_t ndisk = lrobj->getNumberOfStavesPerParent();
+  LOG(DEBUG) << sname << "  <--> "<< path;
 
   Int_t nDisks = mGeometryTGeo->getNumberOfDisksPerHalf(hf);
 
@@ -603,16 +592,13 @@ void Detector::addAlignableVolumesHalf(int hf, TString& parent, Int_t& lastUID) 
     addAlignableVolumesDisk(hf, dk, path, lastUID);
   }
 
-  //return;
 }
 
 //_____________________________________________________________________________
 void Detector::addAlignableVolumesDisk(Int_t hf, Int_t dk,
                                        TString& parent, Int_t& lastUID) const
 {
-  //
-  // Add alignable volumes for a Disk and its daughters
-  //
+  /// Add alignable volumes for a Disk and its daughters
 
   TString path = Form("%s/%s_%d_%d_%d", parent.Data(), GeometryTGeo::getMFTDiskPattern(), hf, dk, dk);
   TString sname = mGeometryTGeo->composeSymNameDisk(hf, dk);
@@ -622,8 +608,6 @@ void Detector::addAlignableVolumesDisk(Int_t hf, Int_t dk,
   if (!gGeoManager->SetAlignableEntry(sname.Data(), path.Data())) {
     LOG(FATAL) << "Unable to set alignable entry ! " << sname << " : " << path;
   }
-
-  //LOG(INFO) << sname << "  addAlignableVolumesDisk "<< path;
 
   Int_t nLadders = 0;
 
@@ -636,16 +620,13 @@ void Detector::addAlignableVolumesDisk(Int_t hf, Int_t dk,
     addAlignableVolumesLadder(hf, dk, lr, path, lastUID);
   }
 
-  //return;
 }
 
 //_____________________________________________________________________________
 void Detector::addAlignableVolumesLadder(Int_t hf, Int_t dk, Int_t lr,
                                          TString& parent, Int_t& lastUID) const
 {
-  //
-  // Add alignable volumes for a Ladder and its daughters
-  //
+  /// Add alignable volumes for a Ladder and its daughters
 
   TString path = parent;
   path = Form("%s/%s_%d_%d_%d_%d", parent.Data(), GeometryTGeo::getMFTLadderPattern(), hf, dk, lr, lr);
@@ -663,58 +644,33 @@ void Detector::addAlignableVolumesLadder(Int_t hf, Int_t dk, Int_t lr,
     addAlignableVolumesChip(hf, dk, lr, ms, path, lastUID);
   }
 
-  //return;
 }
 
 //_____________________________________________________________________________
 void Detector::addAlignableVolumesChip(Int_t hf, Int_t dk, Int_t lr, Int_t ms,
                                        TString& parent, Int_t& lastUID) const
 {
-  //
-  // Add alignable volumes for a Chip
-  //
+  /// Add alignable volumes for a Chip
 
   TString path = Form("%s/%s_%d_%d_%d_%d", parent.Data(), GeometryTGeo::getMFTChipPattern(), hf, dk, lr, ms);
   TString sname = mGeometryTGeo->composeSymNameChip(hf, dk, lr, ms);
 
-  //Int_t modUID = mGeometry->getSensorID(lastUID++);
-
-  //LOG(INFO) << sname << " CHIP: lastUID " << lastUID;
-
   LOG(DEBUG) << "Add " << sname << " <-> " << path;
-
-  //  if (!gGeoManager->SetAlignableEntry(sname, path.Data(), modUID)) {
-  //    LOG(FATAL) << "Unable to set alignable entry ! " << sname << " : " << path;
-  //  }
 
   if (!gGeoManager->SetAlignableEntry(sname, path.Data(), lastUID++)) {
     LOG(FATAL) << "Unable to set alignable entry ! " << sname << " : " << path;
   }
 
-  //return;
 }
 
 //_____________________________________________________________________________
 void Detector::MisalignGeometry() const
 {
-  //
-  // Test to misalign the MFT geometry
+  /// function to misalign the MFT geometry
 
-  // The misaligner
+  // initialize the misaligner
   o2::mft::GeometryMisAligner aGMA;
 
-//    aGMA.SetHalfCartMisAlig(0.00, 0.000, 0.00, 0.000, 0., 0.000); // half-MFT translated on X, Y, Z axis
-//    aGMA.SetHalfAngMisAlig(0.00, 0.001, 0.00, 0.002, 0.00, 0.001);  // half-MFT  rotated on X, Y, Z axis
-//
-//    aGMA.SetModuleCartMisAlig(0.00, 0.002, 0.00, 0.002, 0., 0.000); // Modules (half-disks) translated on X, Y, Z axis
-//    aGMA.SetModuleAngMisAlig(0.00, 0.001, 0.0, 0.001, 0.0, 0.001);  // Modules (half-disks) rotated on X, Y, Z axis
-//
-//    aGMA.SetCartMisAlig(0.00, 0.002, 0.00, 0.003, 0., 0.001); // Detection Elements (ladders) translated on X, Y, Z axis
-//    aGMA.SetAngMisAlig(0.00, 0.002, 0.0, 0.001, 0.0, 0.003);   // Detection Elements (ladders) rotated on Z, X, Y  axis  (!)
-//
-//    aGMA.SetSensorCartMisAlig(0.00, 0.003, 0.00, 0.002, 0., 0.001); // Sensors (chips) translated on X, Y, Z axis
-//    aGMA.SetSensorAngMisAlig(0.00, 0.00, 0.0, 0.000, 0.0, 0.000);   // Sensors (chips) rotated on Z, X, Y  axis  (!)
-    
   aGMA.SetHalfCartMisAlig(0.0, 0.000, 0.0, 0.000, 0., 0.000); // half-MFT translated on X, Y, Z axis
   aGMA.SetHalfAngMisAlig(0.0, 0.00, 0.00, 0.00, 0.00, 0.00);  // half-MFT  rotated on X, Y, Z axis
 
@@ -729,40 +685,28 @@ void Detector::MisalignGeometry() const
 
   aGMA.MisAlign(true);
 
+    
+  // lock the geometry, or unlock with "false"
   //gGeoManager->RefreshPhysicalNodes();
 
+  // store the misaligned geometry in a root file
   //gGeoManager->Export("o2sim_geometry_misaligned.root");
-  gGeoManager->Export("o2sim_geometry_ideal2.root");
-
-    
-  //gGeoManager->RefreshPhysicalNodes(false);
-
-  //return true;
+        
 }
 
 //_____________________________________________________________________________
 void Detector::GetAlignFromSurvey() const
 {
-  //
-  // Get alignment parameters from minimization procedure using survey positions
+  /// Get alignment parameters from minimization procedure using survey positions
 
   // The misaligner
   o2::mft::GeometryMisAligner aGMA0;
-
-  //gGeoManager->RefreshPhysicalNodes();
-    
-   // aGMA0.SetSensorCartMisAlig(0.02, 0.001, 0.03, 0.001, 0.01, 0.001); // Sensors (chips) translated on X, Y, Z axis
-   // aGMA0.SetSensorAngMisAlig(0.06, 0.001, 0.04, 0.001, 0.1, 0.001);   // Sensors (chips) rotated on Z, X, Y  axis  (!)
-    
-  //gGeoManager->Export("o2sim_geometry_misaligned.root");
-  //gGeoManager->Export("o2sim_geometry_test.root");
     
     /// level 4 = chip
     /// level 2 = half-disk
     int level = 4;
     
     aGMA0.GetAlignParamsFromSurveyPositions(true, level);
-    
 }
 
 //_____________________________________________________________________________

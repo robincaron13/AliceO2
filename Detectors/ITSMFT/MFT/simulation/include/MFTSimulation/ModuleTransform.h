@@ -33,7 +33,6 @@ class GeometryTGeo;
 }
 } // namespace o2
 
-//class AliMUONGeometryTransformer;
 namespace o2
 {
 namespace mft
@@ -49,19 +48,6 @@ class ModuleTransform : public TObject
   /// Not implemented
   ModuleTransform& operator=(const ModuleTransform& right);
 
-  //void SetModuleId(Int_t mId) { fModuleId = mId; }
-  //	void SetIdealGeoTransformer(AliMUONGeometryTransformer *iGeoTransformer) {fIdealGeoTransformer = iGeoTransformer;}
-  //	void SetAlignGeoTransformer(AliMUONGeometryTransformer *aAlignTransformer) {fAlignGeoTransformer = aAlignTransformer;}
-  //void SetIdealGeoTransformer();
-  //void SetAlignGeoTransformer();
-
-  //    /// Set geometry instance
-  //    void SetGeometry(GeometryTGeo* geo)
-  //    {
-  //        mGeometryTGeo = geo;
-  //    }
-  //
-
   /// Set align param
   void SetMisAlignPadPosition(const Int_t iPad, Double_t xpos, Double_t ypos, Double_t zpos)
   {
@@ -73,12 +59,7 @@ class ModuleTransform : public TObject
   Double_t MyChi2Disk(Double_t* par);
   Double_t MyChi2Chip(Double_t* par);
 
-  //function to insert in the tfitter for minuit minimization
-  //void MyFcn(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, Int_t iflag);
-
   Int_t GetModuleMeanTransform(TGeoCombiTrans& modTransf, Double_t* parErr, Int_t level);
-
-  //Int_t SetMatrixTransform(TGeoCombiTrans& mDETransf, Double_t* parTrf);
 
   /// Set sensor id name
   void SetSensorId(Int_t half, Int_t disk, Int_t ladder, Int_t sensor)
@@ -88,28 +69,18 @@ class ModuleTransform : public TObject
     fLadderId = ladder;
     fSensorId = sensor;
   }
-  //void InitMyChi2(Int_t &npad, Double_t &matrix[3][4]);
 
   /// Set sensor id name
   void SetSymName(const char* m) { fsymName = m; }
 
   void PrintAlignResults();
 
-  //    void GetPadPositions(const Int_t iPad, Double_t matrixPadMisAlig[3][4])
-  //    {
-  //        matrixPadMisAlig[0][iPad] = fPadMisAlig[0][iPad];
-  //        matrixPadMisAlig[1][iPad] = fPadMisAlig[1][iPad];
-  //        matrixPadMisAlig[2][iPad] = fPadMisAlig[2][iPad];
-  //    }
-
  private:
   Int_t fModuleId;
 
-  //TGeoCombiTrans fiDETrf;
   TGeoCombiTrans GetMatrixPadPosition() const;
 
   GeometryTGeo* mGeometryTGeo; //! access to geometry details
-                               //    o2::detectors::AlignParam* fAliPar;
 
   Int_t fHalfId;
   Int_t fDiskId;
@@ -117,11 +88,7 @@ class ModuleTransform : public TObject
   Int_t fSensorId;
   const char* fsymName;
 
-  Double_t fPadMisAlig[3][4]; ///< Mean and width of the displacements of the modules along x,y,z (translations) and about x,y,z (rotations)
-
-  //    AliMUONGeometryTransformer *fIdealGeoTransformer;
-  //    AliMUONGeometryTransformer *fAlignGeoTransformer;
-  //    AliMpExMap *detElements;
+  Double_t fPadMisAlig[3][4]; ///< Displacements of the pad along x,y,z (translations)
 
   TFitter* fFitter; // fitter object
   TMinuit* gMinuit; // minuit object

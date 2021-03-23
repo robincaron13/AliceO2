@@ -22,13 +22,6 @@
 class TGeoCombiTrans;
 class TClonesArray;
 
-//namespace o2
-//{
-//namespace mft
-//{
-//class MFTGeometryTransformer;
-//}
-//}
 namespace o2
 {
 namespace mft
@@ -36,22 +29,6 @@ namespace mft
 class GeometryTGeo;
 }
 } // namespace o2
-
-//namespace o2
-//{
-//namespace mft
-//{
-//class TGeoCombiTrans;
-//}
-//} // namespace o2
-
-//namespace o2
-//{
-//namespace mft
-//{
-//class TClonesArray;
-//}
-//} // namespace o2
 
 namespace o2
 {
@@ -79,7 +56,6 @@ class GeometryMisAligner : public TObject
   bool matrixToAngles(const double* rot, double& psi, double& theta, double& phi);
 
   // return a misaligned geometry obtained from the existing one.
-  //MFTGeometryTransformer* MisAlign(const MFTGeometryTransformer* transformer,Bool_t verbose = kFALSE);
   void MisAlign(bool verbose = false);
 
   /// Set cartesian displacement parameters different along x, y
@@ -246,8 +222,6 @@ class GeometryMisAligner : public TObject
  protected:
  private:
   // return a misaligned transformation
-  //TGeoCombiTrans MisAlignDetElem(const TGeoCombiTrans& transform) const;
-  //TGeoCombiTrans MisAlignModule(const TGeoCombiTrans& transform) const;
   TGeoCombiTrans MisAlignDetElem() const;
   TGeoCombiTrans MisAlignModule() const;
   TGeoCombiTrans MisAlignSensor() const;
@@ -259,10 +233,10 @@ class GeometryMisAligner : public TObject
   Bool_t fUseUni;  ///< use uniform distribution for misaligmnets
   Bool_t fUseGaus; ///< use gaussian distribution for misaligmnets
 
-  Double_t fSensorMisAlig[6][2];  ///< Mean and width of the displacements of the detection elements along x,y,z (translations) and about x,y,z (rotations)
-  Double_t fDetElemMisAlig[6][2]; ///< Mean and width of the displacements of the detection elements along x,y,z (translations) and about x,y,z (rotations)
-  Double_t fModuleMisAlig[6][2];  ///< Mean and width of the displacements of the modules along x,y,z (translations) and about x,y,z (rotations)
-  Double_t fHalfMisAlig[6][2];    ///< Mean and width of the displacements of the modules along x,y,z (translations) and about x,y,z (rotations)
+  Double_t fSensorMisAlig[6][2];  ///< Mean and width of the displacements of the sensors along x,y,z (translations) and about x,y,z (rotations)
+  Double_t fDetElemMisAlig[6][2]; ///< Mean and width of the displacements of the ladder along x,y,z (translations) and about x,y,z (rotations)
+  Double_t fModuleMisAlig[6][2];  ///< Mean and width of the displacements of the half-disk along x,y,z (translations) and about x,y,z (rotations)
+  Double_t fHalfMisAlig[6][2];    ///< Mean and width of the displacements of the half-MF along x,y,z (translations) and about x,y,z (rotations)
 
   Double_t fXYAngMisAligFactor; ///< factor (<1) to apply to angular misalignment range since range of motion is restricted out of the xy plane
   Double_t fZCartMisAligFactor; ///< factor (<1) to apply to cartetian misalignment range since range of motion is restricted in z direction
