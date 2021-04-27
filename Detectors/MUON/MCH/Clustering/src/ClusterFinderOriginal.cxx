@@ -19,6 +19,7 @@
 #include "MCHClustering/ClusterFinderOriginal.h"
 
 #include <algorithm>
+#include <cstring>
 #include <iterator>
 #include <limits>
 #include <numeric>
@@ -174,7 +175,9 @@ void ClusterFinderOriginal::resetPreCluster(gsl::span<const Digit>& digits)
     double y = mSegmentation->padPositionY(padID);
     double dx = mSegmentation->padSizeX(padID) / 2.;
     double dy = mSegmentation->padSizeY(padID) / 2.;
-    double charge = static_cast<double>(digit.getADC()) / static_cast<double>(std::numeric_limits<unsigned long>::max()) * 1024;
+    uint32_t adc = digit.getADC();
+    float charge(0.);
+    std::memcpy(&charge, &adc, sizeof(adc));
     bool isSaturated = digit.isSaturated();
     int plane = mSegmentation->isBendingPad(padID) ? 0 : 1;
 
@@ -1122,12 +1125,11 @@ void ClusterFinderOriginal::refinePixelArray(const double xyCOG[2], size_t nPixM
   yMin = std::numeric_limits<double>::max();
   yMax = -std::numeric_limits<double>::max();
 
-  // sort pixels according to the charge and move all pixels that must be kept at the begining
-  shiftPixelsToKeep(10000.);
+  // sort pixels according to the charge and move all pixels that must be kept at the beginning
   std::stable_sort(mPixels.begin(), mPixels.end(), [](const PadOriginal& pixel1, const PadOriginal& pixel2) {
-    return pixel1.charge() > pixel2.charge();
+    return (pixel1.status() == PadOriginal::kMustKeep && pixel2.status() != PadOriginal::kMustKeep) ||
+           (pixel1.status() == pixel2.status() && pixel1.charge() > pixel2.charge());
   });
-  shiftPixelsToKeep(-10000.);
   double pixMinCharge = TMath::Min(0.01 * mPixels.front().charge(), 100. * SLowestPixelCharge);
 
   // define the half-size and shift of the new pixels depending on the direction of splitting
@@ -1212,19 +1214,6 @@ void ClusterFinderOriginal::refinePixelArray(const double xyCOG[2], size_t nPixM
     mPixels.emplace_back(mPixels.front());
     mPixels.back().setx(xMin);
     mPixels.back().sety(xyCOG[1]);
-  }
-}
-
-//_________________________________________________________________________________________________
-void ClusterFinderOriginal::shiftPixelsToKeep(double charge)
-{
-  /// add the given charge to the pixels tagged as kMustKeep
-  /// (just a trick to put them in front when sorting pixels by charge)
-
-  for (auto& pixel : mPixels) {
-    if (pixel.status() == PadOriginal::kMustKeep) {
-      pixel.setCharge(pixel.charge() + charge);
-    }
   }
 }
 

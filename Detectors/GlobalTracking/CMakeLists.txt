@@ -14,7 +14,6 @@ o2_add_library(
           src/MatchTPCITSParams.cxx
           src/MatchCosmics.cxx
           src/MatchCosmicsParams.cxx
-          src/RecoContainer.cxx
   PUBLIC_LINK_LIBRARIES
     O2::Framework
     O2::DataFormatsTPC
@@ -31,7 +30,9 @@ o2_add_library(
     O2::TOFBase
     O2::TOFCalibration
     O2::SimConfig
-    O2::DataFormatsFT0)
+    O2::DataFormatsFT0
+    O2::DataFormatsGlobalTracking
+    O2::ITStracking)
 
 o2_target_root_dictionary(
   GlobalTracking

@@ -530,6 +530,7 @@ void Detector::createMaterials()
 
   // Barrel Materials
 
+
   o2::base::Detector::Mixture(matId, "CarbonFiberM46J$", aCM46J, zCM46J, dCM46J,
                               nCM46J, wCM46J);
   o2::base::Detector::Medium(matId, "CarbonFiberM46J$", matId, unsens, itgfld,

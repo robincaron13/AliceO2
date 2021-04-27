@@ -35,6 +35,11 @@ Mapping::ErrorStatus Mapping::hwToAbsId(short ddl, short hwAddr, short& absId, C
   if (ddl < 0 || ddl > 14) {
     return kWrongDDL;
   }
+  if ((hwAddr >= 112 && hwAddr < 128) || (hwAddr >= 2159 && hwAddr < 2176)) { //TRU flags
+    caloFlag = kTRU;
+    absId = -1;
+    return kOK;
+  }
   if (hwAddr < 0 || hwAddr >= NMaxHWAddress) {
     return kWrongHWAddress;
   }
@@ -43,7 +48,7 @@ Mapping::ErrorStatus Mapping::hwToAbsId(short ddl, short hwAddr, short& absId, C
   absId = mAbsId[ddl][hwAddr];
   caloFlag = mCaloFlag[ddl][hwAddr];
 
-  if (absId > NCHANNELS) {
+  if (absId > NCHANNELS || absId <= 1792) {
     absId = 0;
     return kWrongHWAddress;
   }
@@ -53,15 +58,23 @@ Mapping::ErrorStatus Mapping::hwToAbsId(short ddl, short hwAddr, short& absId, C
 Mapping::ErrorStatus Mapping::absIdTohw(short absId, short caloFlag, short& ddl, short& hwAddr)
 {
 
-  if (absId < 0 || absId > NCHANNELS) {
-    ddl = 0;
-    hwAddr = 0;
-    return kWrongAbsId;
-  }
   if (caloFlag < 0 || caloFlag > 2) {
     ddl = 0;
     hwAddr = 0;
     return kWrongCaloFlag;
+  }
+  if (caloFlag < 2) {
+    if (absId <= 1792 || absId > NCHANNELS) {
+      ddl = 0;
+      hwAddr = 0;
+      return kWrongAbsId;
+    }
+  } else {
+    if (absId < 0 || absId > NTRUReadoutChannels) {
+      ddl = 0;
+      hwAddr = 0;
+      return kWrongAbsId;
+    }
   }
 
   if (!mInitialized) {
@@ -77,8 +90,6 @@ Mapping::ErrorStatus Mapping::absIdTohw(short absId, short caloFlag, short& ddl,
 Mapping::ErrorStatus Mapping::setMapping()
 {
   //Read mapping from data files a-la Run2
-
-  o2::phos::Geometry* geom = o2::phos::Geometry::GetInstance();
 
   std::string p;
   if (mPath.empty()) { //use default path
@@ -140,24 +151,31 @@ Mapping::ErrorStatus Mapping::setMapping()
           return kNotInitialized;
         }
 
-        if (caloFlag == 2) { //TODO!!!! TRU mapping not known yet
-          continue;
-        }
-
         //convert ddl, col,raw caloFlag to AbsId
         // Converts the absolute numbering into the following array
         //  relid[0] = PHOS Module number
         //  relid[1] = Row number inside a PHOS module (Phi coordinate)
         //  relid[2] = Column number inside a PHOS module (Z coordinate)
         short ddl = 4 * m + i - 2;
-
-        char relid[3] = {static_cast<char>(m), static_cast<char>(row + 1), static_cast<char>(col + 1)};
-        short absId;
-        geom->relToAbsNumbering(relid, absId);
-
         if (ddl < 0 || ddl >= NDDL) {
           LOG(FATAL) << "Wrong ddl address found (" << ddl << "). Module= " << m << " RCU =" << i;
           return kNotInitialized;
+        }
+
+        short absId;
+        if (caloFlag < 2) { //readout channels
+          char relid[3] = {static_cast<char>(m + 1), static_cast<char>(row + 1), static_cast<char>(col + 1)};
+          Geometry::relToAbsNumbering(relid, absId);
+        } else { //TRU channels
+          if (isTRUReadoutchannel(hwAddress)) {
+            if (hwAddress < 2048) { //branch 28<=z<56
+              absId = ddl * 2 * NTRUBranchReadoutChannels + hwAddress;
+            } else { //branch 0<=z<28
+              absId = (ddl * 2 + 1) * NTRUBranchReadoutChannels + hwAddress - 2048;
+            }
+          } else { //TRU flag channels, no absId
+            continue;
+          }
         }
 
         mAbsId[ddl][hwAddress] = absId;

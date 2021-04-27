@@ -139,6 +139,7 @@ set(HDRS_INSTALL
     qconfigoptions.h
     qa/GPUQAHelper.h
     DataCompression/GPUTPCClusterRejection.h
+    Refit/GPUTrackParamConvert.h
     Definitions/GPUDef.h
     Definitions/GPUDefConstantsAndSettings.h
     Definitions/GPUDefGPUParameters.h
@@ -187,7 +188,7 @@ if(ALIGPU_BUILD_TYPE STREQUAL "O2" OR CONFIG_O2_EXTENSIONS)
         TPCClusterFinder/GPUTPCCFMCLabelFlattener.cxx
         TPCClusterFinder/GPUTPCCFDecodeZS.cxx
         TPCClusterFinder/GPUTPCCFGather.cxx
-        TPCClusterFinder/TPCPadGainCalib.cxx
+        DataTypes/TPCPadGainCalib.cxx
         Refit/GPUTrackingRefit.cxx
         Refit/GPUTrackingRefitKernel.cxx
         Merger/GPUTPCGMO2Output.cxx)
@@ -202,7 +203,7 @@ if(ALIGPU_BUILD_TYPE STREQUAL "O2" OR CONFIG_O2_EXTENSIONS)
                      TPCClusterFinder/CfFragment.h
                      TPCClusterFinder/CfUtils.h
                      TPCClusterFinder/ChargePos.h
-                     TPCClusterFinder/clusterFinderDefs.h
+                     Definitions/clusterFinderDefs.h
                      TPCClusterFinder/GPUTPCClusterFinderKernels.h
                      TPCClusterFinder/PackedCharge.h
                      TPCClusterFinder/GPUTPCCFChainContext.h)
@@ -327,7 +328,7 @@ endif()
 # Main CMake part for AliRoot
 if(ALIGPU_BUILD_TYPE STREQUAL "ALIROOT")
   set(HDRS_CINT_ALIROOT ${HDRS_CINT_ALIROOT}
-                        Base/GPUO2DataTypes.h)
+                        DataTypes/GPUO2DataTypes.h)
   add_definitions(-DGPUCA_ALIROOT_LIB)
   include_directories(display qa)
   include_directories(SYSTEM ${ROOT_INCLUDE_DIR})

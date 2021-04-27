@@ -15,6 +15,7 @@
 #include "DebugGUI/imgui_extras.h"
 #include "Framework/DriverControl.h"
 #include "Framework/DriverInfo.h"
+#include "Framework/DeviceMetricsHelper.h"
 #include "FrameworkGUIDeviceInspector.h"
 #include "FrameworkGUIDevicesGraph.h"
 #include "FrameworkGUIDataRelayerUsage.h"
@@ -196,7 +197,7 @@ void displayDeviceMetrics(const char* label, std::string const& selectedMetricNa
 
   for (int mi = 0; mi < metricsInfos.size(); ++mi) {
     auto vi = DeviceMetricsHelper::metricIdxByName(selectedMetricName, metricsInfos[mi]);
-    if (vi == metricsInfos[mi].metricLabelsIdx.size()) {
+    if (vi == metricsInfos[mi].metricLabels.size()) {
       continue;
     }
     auto& metric = metricsInfos[mi].metrics[vi];
@@ -238,7 +239,7 @@ void displayDeviceMetrics(const char* label, std::string const& selectedMetricNa
   }
   if (true) {
     auto vi = DeviceMetricsHelper::metricIdxByName(selectedMetricName, driverMetric);
-    if (vi < driverMetric.metricLabelsIdx.size()) {
+    if (vi < driverMetric.metricLabels.size()) {
       auto& metric = driverMetric.metrics[vi];
       deviceNames.push_back("driver");
       metricType = metric.type;
@@ -410,7 +411,7 @@ void historyBar(gui::WorkspaceGUIState& globalGUIState,
 
   size_t i = DeviceMetricsHelper::metricIdxByName(currentMetricName, metricsInfo);
   // We did not find any plot, skipping this.
-  if (i == metricsInfo.metricLabelsIdx.size()) {
+  if (i == metricsInfo.metricLabels.size()) {
     ImGui::NextColumn();
     return;
   }
@@ -490,7 +491,7 @@ std::vector<ColumnInfo> calculateTableIndex(gui::WorkspaceGUIState& globalGUISta
     size_t idx = DeviceMetricsHelper::metricIdxByName(currentMetricName, metricsInfo);
 
     // We did not find any plot, skipping this.
-    if (idx == metricsInfo.metricLabelsIdx.size()) {
+    if (idx == metricsInfo.metricLabels.size()) {
       columns.push_back({MetricType::Int, -1});
       continue;
     }
@@ -555,7 +556,7 @@ void displayDeviceHistograms(gui::WorkspaceGUIState& state,
     currentMetricName = driverInfo.availableMetrics[state.selectedMetric];
     for (auto& metricInfo : metricsInfos) {
       size_t mi = DeviceMetricsHelper::metricIdxByName(currentMetricName, metricInfo);
-      if (mi == metricInfo.metricLabelsIdx.size()) {
+      if (mi == metricInfo.metricLabels.size()) {
         continue;
       }
       auto& metric = metricInfo.metrics[mi];

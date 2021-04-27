@@ -20,6 +20,8 @@
 #include "GPUParam.inc"
 #include "GPUQA.h"
 #include "GPUOutputControl.h"
+#include "TPCPadGainCalib.h"
+#include "TPCdEdxCalibrationSplines.h"
 #include <iostream>
 #include <fstream>
 
@@ -37,7 +39,7 @@ int GPUO2Interface::Initialize(const GPUO2InterfaceConfiguration& config)
     return (1);
   }
   mConfig.reset(new GPUO2InterfaceConfiguration(config));
-  mContinuous = mConfig->configEvent.continuousMaxTimeBin != 0;
+  mContinuous = mConfig->configGRP.continuousMaxTimeBin != 0;
   mRec.reset(GPUReconstruction::CreateInstance(mConfig->configDeviceBackend));
   if (mRec == nullptr) {
     GPUError("Error obtaining instance of GPUReconstruction");
@@ -47,9 +49,9 @@ int GPUO2Interface::Initialize(const GPUO2InterfaceConfiguration& config)
   mChain->mConfigDisplay = &mConfig->configDisplay;
   mChain->mConfigQA = &mConfig->configQA;
   if (mConfig->configWorkflow.inputs.isSet(GPUDataTypes::InOutType::TPCRaw)) {
-    mConfig->configEvent.needsClusterer = 1;
+    mConfig->configGRP.needsClusterer = 1;
   }
-  mRec->SetSettings(&mConfig->configEvent, &mConfig->configReconstruction, &mConfig->configProcessing, &mConfig->configWorkflow);
+  mRec->SetSettings(&mConfig->configGRP, &mConfig->configReconstruction, &mConfig->configProcessing, &mConfig->configWorkflow);
   mChain->SetCalibObjects(mConfig->configCalib);
   mOutputRegions.reset(new GPUTrackingOutputs);
   if (mConfig->configInterface.outputToExternalBuffers) {
@@ -159,4 +161,19 @@ int GPUO2Interface::registerMemoryForGPU(const void* ptr, size_t size)
 int GPUO2Interface::unregisterMemoryForGPU(const void* ptr)
 {
   return mRec->unregisterMemoryForGPU(ptr);
+}
+
+std::unique_ptr<TPCPadGainCalib> GPUO2Interface::getPadGainCalibDefault()
+{
+  return std::make_unique<TPCPadGainCalib>();
+}
+
+std::unique_ptr<TPCPadGainCalib> GPUO2Interface::getPadGainCalib(const o2::tpc::CalDet<float>& in)
+{
+  return std::make_unique<TPCPadGainCalib>(in);
+}
+
+std::unique_ptr<TPCdEdxCalibrationSplines> GPUO2Interface::getdEdxCalibrationSplinesDefault()
+{
+  return std::make_unique<TPCdEdxCalibrationSplines>();
 }

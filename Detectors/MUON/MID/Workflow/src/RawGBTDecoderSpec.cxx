@@ -28,9 +28,9 @@
 #include "Framework/Task.h"
 #include "Headers/RDHAny.h"
 #include "DetectorsRaw/RDHUtils.h"
+#include "DataFormatsMID/ROBoard.h"
 #include "DataFormatsMID/ROFRecord.h"
-#include "MIDRaw/GBTDecoder.h"
-#include "MIDRaw/LocalBoardRO.h"
+#include "MIDRaw/LinkDecoder.h"
 
 namespace o2
 {
@@ -69,7 +69,7 @@ class RawGBTDecoderDeviceDPL
       mDecoder = createGBTDecoder(*rdhPtr, mFeeId, mIsDebugMode, mCrateMasks.getMask(mFeeId), mElectronicsDelay);
     }
 
-    std::vector<LocalBoardRO> data;
+    std::vector<ROBoard> data;
     std::vector<ROFRecord> rofRecords;
 
     for (auto it = parser.begin(), end = parser.end(); it != end; ++it) {
@@ -89,7 +89,7 @@ class RawGBTDecoderDeviceDPL
   }
 
  private:
-  std::unique_ptr<GBTDecoder> mDecoder{nullptr};
+  std::unique_ptr<LinkDecoder> mDecoder{nullptr};
   bool mIsDebugMode{false};
   std::vector<uint16_t> mFeeIds{};
   CrateMasks mCrateMasks{};

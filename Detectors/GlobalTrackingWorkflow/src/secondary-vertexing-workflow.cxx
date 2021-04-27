@@ -10,8 +10,8 @@
 
 #include "GlobalTrackingWorkflow/SecondaryVertexingSpec.h"
 #include "GlobalTrackingWorkflow/SecondaryVertexWriterSpec.h"
-#include "GlobalTrackingWorkflow/TrackTPCITSReaderSpec.h"
-#include "GlobalTrackingWorkflow/PrimaryVertexReaderSpec.h"
+#include "GlobalTrackingWorkflowReaders/TrackTPCITSReaderSpec.h"
+#include "GlobalTrackingWorkflowReaders/PrimaryVertexReaderSpec.h"
 #include "ITSWorkflow/TrackReaderSpec.h"
 #include "TPCWorkflow/TrackReaderSpec.h"
 #include "TOFWorkflow/TOFMatchedReaderSpec.h"
@@ -19,6 +19,7 @@
 #include "ReconstructionDataFormats/GlobalTrackID.h"
 #include "DetectorsCommonDataFormats/DetID.h"
 #include "CommonUtils/ConfigurableParam.h"
+#include "DetectorsRaw/HBFUtilsInitializer.h"
 #include "Framework/CompletionPolicy.h"
 #include "Framework/ConfigParamSpec.h"
 
@@ -35,8 +36,10 @@ void customize(std::vector<ConfigParamSpec>& workflowOptions)
     {"disable-root-input", o2::framework::VariantType::Bool, false, {"disable root-files input reader"}},
     {"disable-root-output", o2::framework::VariantType::Bool, false, {"disable root-files output writer"}},
     {"vertexing-sources", VariantType::String, std::string{GID::ALL}, {"comma-separated list of sources to use in vertexing"}},
-    {"enable-cascade-finder", o2::framework::VariantType::Bool, false, {"run cascade finder for each V0"}},
+    {"disable-cascade-finder", o2::framework::VariantType::Bool, false, {"do not run cascade finder"}},
     {"configKeyValues", VariantType::String, "", {"Semicolon separated key=value strings ..."}}};
+
+  o2::raw::HBFUtilsInitializer::addConfigOption(options);
 
   std::swap(workflowOptions, options);
 }
@@ -56,7 +59,7 @@ WorkflowSpec defineDataProcessing(ConfigContext const& configcontext)
   bool useMC = false;
   auto disableRootInp = configcontext.options().get<bool>("disable-root-input");
   auto disableRootOut = configcontext.options().get<bool>("disable-root-output");
-  auto enableCasc = configcontext.options().get<bool>("enable-cascade-finder");
+  auto enableCasc = !configcontext.options().get<bool>("disable-cascade-finder");
 
   GID::mask_t srcSV = alowedSourcesSV & GID::getSourcesMask(configcontext.options().get<std::string>("vertexing-sources"));
   WorkflowSpec specs;
@@ -85,5 +88,9 @@ WorkflowSpec defineDataProcessing(ConfigContext const& configcontext)
   if (!disableRootOut) {
     specs.emplace_back(o2::vertexing::getSecondaryVertexWriterSpec());
   }
+
+  // configure dpl timer to inject correct firstTFOrbit: start from the 1st orbit of TF containing 1st sampled orbit
+  o2::raw::HBFUtilsInitializer hbfIni(configcontext, specs);
+
   return std::move(specs);
 }
