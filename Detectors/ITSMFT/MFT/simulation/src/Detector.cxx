@@ -530,7 +530,6 @@ void Detector::createMaterials()
 
   // Barrel Materials
 
-
   o2::base::Detector::Mixture(matId, "CarbonFiberM46J$", aCM46J, zCM46J, dCM46J,
                               nCM46J, wCM46J);
   o2::base::Detector::Medium(matId, "CarbonFiberM46J$", matId, unsens, itgfld,
@@ -599,7 +598,6 @@ void Detector::defineSensitiveVolumes()
   }
 }
 
-
 //_____________________________________________________________________________
 void Detector::addAlignableVolumes() const
 {
@@ -626,7 +624,6 @@ void Detector::addAlignableVolumes() const
   for (Int_t hf = 0; hf < nHalf; hf++) {
     addAlignableVolumesHalf(hf, path, lastUID);
   }
-    
 }
 
 //_____________________________________________________________________________
@@ -646,7 +643,6 @@ void Detector::addAlignableVolumesHalf(int hf, TString& parent, Int_t& lastUID) 
   for (int dk = 0; dk < nDisks; dk++) {
     addAlignableVolumesDisk(hf, dk, path, lastUID);
   }
-
 }
 
 //_____________________________________________________________________________
@@ -671,7 +667,6 @@ void Detector::addAlignableVolumesDisk(Int_t hf, Int_t dk,
   for (Int_t lr = 0; lr < nLadders; lr++) {
     addAlignableVolumesLadder(hf, dk, lr, path, lastUID);
   }
-
 }
 
 //_____________________________________________________________________________
@@ -695,7 +690,6 @@ void Detector::addAlignableVolumesLadder(Int_t hf, Int_t dk, Int_t lr,
   for (Int_t ms = 0; ms < nSensors; ms++) {
     addAlignableVolumesChip(hf, dk, lr, ms, path, lastUID);
   }
-
 }
 
 //_____________________________________________________________________________
@@ -712,7 +706,6 @@ void Detector::addAlignableVolumesChip(Int_t hf, Int_t dk, Int_t lr, Int_t ms,
   if (!gGeoManager->SetAlignableEntry(sname, path.Data(), lastUID++)) {
     LOG(FATAL) << "Unable to set alignable entry ! " << sname << " : " << path;
   }
-
 }
 
 //_____________________________________________________________________________
