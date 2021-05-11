@@ -832,7 +832,7 @@ GPUd() bool GPUTRDTracker_t<TRDTRK, PROP>::FollowProlongation(PROP* prop, TRDTRK
 
   int candidateIdxOffset = threadId * 2 * mNCandidates;
   int hypothesisIdxOffset = threadId * mNCandidates;
-  int trkltIdxOffset = collisionId * (kNChambers + 1);                                     // offset for accessing mTrackletIndexArray for given collision
+  int trkltIdxOffset = collisionId * (kNChambers + 1);                                                            // offset for accessing mTrackletIndexArray for given collision
   int glbTrkltIdxOffset = (mProcessPerTimeFrame) ? GetConstantMem()->ioPtrs.trdTrackletIdxFirst[collisionId] : 0; // offset of first tracklet in given collision in global tracklet array
 
   auto trkWork = t;
