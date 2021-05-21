@@ -17,5 +17,6 @@
 #pragma link C++ class o2::mft::Detector + ;
 #pragma link C++ class o2::base::DetImpl < o2::mft::Detector> + ;
 #pragma link C++ class o2::mft::DigitizerTask + ;
+#pragma link C++ class o2::mft::GeometryMisAligner + ;
 
 #endif
