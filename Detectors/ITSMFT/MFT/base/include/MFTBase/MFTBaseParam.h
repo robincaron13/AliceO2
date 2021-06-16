@@ -43,7 +43,6 @@ struct MFTBaseParam : public o2::conf::ConfigurableParamHelper<MFTBaseParam> {
   // General configurations
   bool minimal = false; // Disables all elements out of MFT acceptance
 
-
   O2ParamDef(MFTBaseParam, "MFTBase");
 };
 
